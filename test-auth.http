@@ -1,0 +1,445 @@
+###############################################################################
+# TESTS D'AUTHENTIFICATION - APP TRÉSORERIE PAROISSE
+# 
+# Plateforme de comptabilité pour l'Église du Christianisme Céleste
+# Module: Authentification (Login, Register, Logout)
+#
+# Instructions d'utilisation:
+# 1. Installer l'extension Thunder Client dans VSCode
+# 2. Ouvrir ce fichier dans VSCode
+# 3. Cliquer sur "Run" pour exécuter une requête
+# 4. Voir les résultats dans le panneau Thunder Client
+#
+# Variables disponibles:
+# - {{BASE_URL}}: URL de base (http://localhost:3000)
+# - {{TOKEN}}: Token JWT stocké après login/register
+###############################################################################
+
+###############################################################################
+# CONFIGURATION
+###############################################################################
+
+@BASE_URL = http://localhost:3001
+@EMAIL_TEST = tresorier.test@eglise.com
+@PASSWORD = SecurePassword123!
+@PASSWORD_CONFIRM = SecurePassword123!
+@NOM_TEST = Jean Paul Trésorier
+
+###############################################################################
+# 1. TEST D'INSCRIPTION - CRÉER UN NOUVEL UTILISATEUR
+###############################################################################
+
+### 1.1 Inscription réussie - Trésorier
+# Description: Crée un nouvel utilisateur TRESORIER
+# Résultat attendu: 201 Created + Token JWT
+# Processus:
+# 1. Valide les données d'entrée
+# 2. Hashé le mot de passe avec bcrypt
+# 3. Crée l'utilisateur en base de données
+# 4. Génère un token JWT
+# 5. Enregistre l'action dans le journal d'audit
+POST {{BASE_URL}}/api/auth/register
+Content-Type: application/json
+
+{
+  "nom": "{{NOM_TEST}}",
+  "email": "{{EMAIL_TEST}}",
+  "motDePasse": "{{PASSWORD}}",
+  "confirmationMotDePasse": "{{PASSWORD_CONFIRM}}",
+  "role": "TRESORIER"
+}
+
+### 1.2 Inscription réussie - Admin
+# Description: Crée un nouvel utilisateur ADMIN
+# Résultat attendu: 201 Created + Token JWT
+POST {{BASE_URL}}/api/auth/register
+Content-Type: application/json
+
+{
+  "nom": "Administrateur Principal",
+  "email": "admin@eglise.com",
+  "motDePasse": "AdminSecure2026!",
+  "confirmationMotDePasse": "AdminSecure2026!",
+  "role": "ADMIN"
+}
+
+### 1.3 Inscription réussie - Responsable
+# Description: Crée un nouvel utilisateur RESPONSABLE
+# Résultat attendu: 201 Created + Token JWT
+POST {{BASE_URL}}/api/auth/register
+Content-Type: application/json
+
+{
+  "nom": "Responsable Église",
+  "email": "responsable@eglise.com",
+  "motDePasse": "ResponsablePass2026!",
+  "confirmationMotDePasse": "ResponsablePass2026!",
+  "role": "RESPONSABLE"
+}
+
+### 1.4 Inscription réussie - Auditeur
+# Description: Crée un nouvel utilisateur AUDITEUR
+# Résultat attendu: 201 Created + Token JWT
+POST {{BASE_URL}}/api/auth/register
+Content-Type: application/json
+
+{
+  "nom": "Auditeur Interne",
+  "email": "auditeur@eglise.com",
+  "motDePasse": "AuditeurPass2026!",
+  "confirmationMotDePasse": "AuditeurPass2026!",
+  "role": "AUDITEUR"
+}
+
+### 1.5 Inscription échouée - Email manquant
+# Description: Tentative sans email
+# Résultat attendu: 400 Bad Request
+POST {{BASE_URL}}/api/auth/register
+Content-Type: application/json
+
+{
+  "nom": "Test Sans Email",
+  "motDePasse": "Password123!",
+  "confirmationMotDePasse": "Password123!",
+  "role": "TRESORIER"
+}
+
+### 1.6 Inscription échouée - Mot de passe manquant
+# Description: Tentative sans mot de passe
+# Résultat attendu: 400 Bad Request
+POST {{BASE_URL}}/api/auth/register
+Content-Type: application/json
+
+{
+  "nom": "Test Sans Password",
+  "email": "test.nopassword@eglise.com",
+  "confirmationMotDePasse": "Password123!",
+  "role": "TRESORIER"
+}
+
+### 1.7 Inscription échouée - Les mots de passe ne correspondent pas
+# Description: Tentative avec mots de passe différents
+# Résultat attendu: 400 Bad Request
+POST {{BASE_URL}}/api/auth/register
+Content-Type: application/json
+
+{
+  "nom": "Test Passwords Non Matches",
+  "email": "test.mismatch@eglise.com",
+  "motDePasse": "Password123!",
+  "confirmationMotDePasse": "DifferentPassword456!",
+  "role": "TRESORIER"
+}
+
+### 1.8 Inscription échouée - Mot de passe trop court (< 8 caractères)
+# Description: Tentative avec mot de passe court
+# Résultat attendu: 400 Bad Request
+POST {{BASE_URL}}/api/auth/register
+Content-Type: application/json
+
+{
+  "nom": "Test Short Password",
+  "email": "test.short@eglise.com",
+  "motDePasse": "Short",
+  "confirmationMotDePasse": "Short",
+  "role": "TRESORIER"
+}
+
+### 1.9 Inscription échouée - Rôle invalide
+# Description: Tentative avec rôle non autorisé
+# Résultat attendu: 400 Bad Request
+POST {{BASE_URL}}/api/auth/register
+Content-Type: application/json
+
+{
+  "nom": "Test Invalid Role",
+  "email": "test.invalidrole@eglise.com",
+  "motDePasse": "Password123!",
+  "confirmationMotDePasse": "Password123!",
+  "role": "SUPER_ADMIN"
+}
+
+### 1.10 Inscription échouée - Email invalide (format)
+# Description: Tentative avec email mal formé
+# Résultat attendu: 400 Bad Request
+POST {{BASE_URL}}/api/auth/register
+Content-Type: application/json
+
+{
+  "nom": "Test Invalid Email",
+  "email": "email-invalide-sans-at",
+  "motDePasse": "Password123!",
+  "confirmationMotDePasse": "Password123!",
+  "role": "TRESORIER"
+}
+
+### 1.11 Inscription échouée - Email déjà utilisé
+# Description: Tentative avec un email déjà enregistré
+# Résultat attendu: 409 Conflict
+# Note: Relancer cette requête 1.1 d'abord pour générer le conflit
+POST {{BASE_URL}}/api/auth/register
+Content-Type: application/json
+
+{
+  "nom": "Autre Utilisateur",
+  "email": "{{EMAIL_TEST}}",
+  "motDePasse": "Password123!",
+  "confirmationMotDePasse": "Password123!",
+  "role": "TRESORIER"
+}
+
+###############################################################################
+# 2. TEST DE CONNEXION - LOGIN
+###############################################################################
+
+### 2.1 Connexion réussie - Trésorier
+# Description: Connexion avec identifiants valides
+# Résultat attendu: 200 OK + Token JWT
+# Processus:
+# 1. Recherche l'utilisateur par email
+# 2. Vérifie que l'utilisateur est actif
+# 3. Compare le mot de passe avec bcrypt
+# 4. Génère un token JWT
+# 5. Enregistre l'action dans l'audit
+POST {{BASE_URL}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{EMAIL_TEST}}",
+  "motDePasse": "{{PASSWORD}}"
+}
+
+### 2.2 Connexion réussie - Admin
+# Description: Connexion admin
+# Résultat attendu: 200 OK + Token JWT
+POST {{BASE_URL}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@eglise.com",
+  "motDePasse": "AdminSecure2026!"
+}
+
+### 2.3 Connexion réussie - Responsable
+# Description: Connexion responsable
+# Résultat attendu: 200 OK + Token JWT
+POST {{BASE_URL}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "responsable@eglise.com",
+  "motDePasse": "ResponsablePass2026!"
+}
+
+### 2.4 Connexion réussie - Auditeur
+# Description: Connexion auditeur
+# Résultat attendu: 200 OK + Token JWT
+POST {{BASE_URL}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "auditeur@eglise.com",
+  "motDePasse": "AuditeurPass2026!"
+}
+
+### 2.5 Connexion échouée - Email manquant
+# Description: Tentative de connexion sans email
+# Résultat attendu: 400 Bad Request
+POST {{BASE_URL}}/api/auth/login
+Content-Type: application/json
+
+{
+  "motDePasse": "{{PASSWORD}}"
+}
+
+### 2.6 Connexion échouée - Mot de passe manquant
+# Description: Tentative de connexion sans mot de passe
+# Résultat attendu: 400 Bad Request
+POST {{BASE_URL}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{EMAIL_TEST}}"
+}
+
+### 2.7 Connexion échouée - Email inexistant
+# Description: Tentative de connexion avec email inexistant
+# Résultat attendu: 401 Unauthorized
+# Message: "Email ou mot de passe incorrect"
+POST {{BASE_URL}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "inexistant@eglise.com",
+  "motDePasse": "{{PASSWORD}}"
+}
+
+### 2.8 Connexion échouée - Mot de passe incorrect
+# Description: Tentative de connexion avec mauvais mot de passe
+# Résultat attendu: 401 Unauthorized
+# Message: "Email ou mot de passe incorrect"
+POST {{BASE_URL}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{EMAIL_TEST}}",
+  "motDePasse": "MauvaisPassword123!"
+}
+
+###############################################################################
+# 3. TEST DE DÉCONNEXION - LOGOUT
+###############################################################################
+
+### 3.1 Déconnexion réussie
+# Description: Déconnexion avec token valide
+# Résultat attendu: 200 OK
+# Processus:
+# 1. Valide le token JWT
+# 2. Extrait les informations de l'utilisateur
+# 3. Enregistre la déconnexion dans l'audit
+# 4. Retourne un message de confirmation
+# Note: Copier le token de 2.1 ou 2.2 et le mettre dans la variable {{TOKEN}}
+POST {{BASE_URL}}/api/auth/logout
+Content-Type: application/json
+# Authorization: Bearer {{TOKEN}}
+
+{}
+
+### 3.2 Déconnexion échouée - Token manquant
+# Description: Tentative de déconnexion sans token
+# Résultat attendu: 401 Unauthorized
+# Message: "Token manquant"
+POST {{BASE_URL}}/api/auth/logout
+Content-Type: application/json
+
+{}
+
+### 3.3 Déconnexion échouée - Token invalide
+# Description: Tentative de déconnexion avec token faux
+# Résultat attendu: 401 Unauthorized
+# Message: "Token invalide ou expiré"
+POST {{BASE_URL}}/api/auth/logout
+Content-Type: application/json
+Authorization: Bearer invalid.token.here
+
+{}
+
+### 3.4 Déconnexion échouée - Format Authorization invalide
+# Description: Tentative sans "Bearer " en préfixe
+# Résultat attendu: 401 Unauthorized
+# Message: "Format Authorization invalide"
+POST {{BASE_URL}}/api/auth/logout
+Content-Type: application/json
+# Authorization: {{TOKEN}}
+
+{}
+
+###############################################################################
+# 4. SCÉNARIOS D'INTÉGRATION COMPLETS
+###############################################################################
+
+### 4.1 Scénario complet: Inscription �� Connexion → Déconnexion
+# Instructions:
+# 1. Exécuter 1.1 (Inscription)
+# 2. Copier le token reçu et définir {{TOKEN}}
+# 3. Exécuter 2.1 (Connexion) - devrait réussir
+# 4. Copier le nouveau token et mettre à jour {{TOKEN}}
+# 5. Exécuter 3.1 (Déconnexion)
+# Résultat attendu: Tous les appels réussissent
+
+###############################################################################
+# 5. TESTS DE SÉCURITÉ
+###############################################################################
+
+### 5.1 Test brute-force - Plusieurs tentatives échouées
+# Description: Simuler une tentative de brute-force
+# Résultat attendu: 401 Unauthorized (à chaque fois)
+# Note: La vraie protection serait d'ajouter un système de rate-limiting
+POST {{BASE_URL}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{EMAIL_TEST}}",
+  "motDePasse": "MauvaisMotDePasse1"
+}
+
+### 5.2 Test brute-force - Deuxième tentative
+POST {{BASE_URL}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{EMAIL_TEST}}",
+  "motDePasse": "MauvaisMotDePasse2"
+}
+
+### 5.3 Test brute-force - Troisième tentative
+POST {{BASE_URL}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{EMAIL_TEST}}",
+  "motDePasse": "MauvaisMotDePasse3"
+}
+
+###############################################################################
+# 6. TESTS DE VALIDATION DE DONNÉES
+###############################################################################
+
+### 6.1 Injection SQL - Email suspecte
+# Description: Tentative d'injection SQL
+# Résultat attendu: Validation correcte (aucune injection)
+POST {{BASE_URL}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "test@eglise.com'; DROP TABLE utilisateurs; --",
+  "motDePasse": "{{PASSWORD}}"
+}
+
+### 6.2 XSS - Contenu JavaScript dans le nom
+# Description: Tentative de XSS dans l'inscription
+# Résultat attendu: Stocké comme texte simple (pas d'exécution)
+POST {{BASE_URL}}/api/auth/register
+Content-Type: application/json
+
+{
+  "nom": "<script>alert('XSS')</script>",
+  "email": "xss.test@eglise.com",
+  "motDePasse": "Password123!",
+  "confirmationMotDePasse": "Password123!",
+  "role": "TRESORIER"
+}
+
+###############################################################################
+# NOTES IMPORTANTES
+###############################################################################
+
+# 1. GESTION DU TOKEN
+#    - Le token JWT est valide 24 heures
+#    - À chaque connexion, un nouveau token est généré
+#    - Le token contient: userId, email, role
+#    - Ne JAMAIS exposer le token en production
+#
+# 2. SÉCURITÉ DES MOTS DE PASSE
+#    - Minimum 8 caractères
+#    - Hashés avec bcrypt (10 rounds)
+#    - Jamais stockés en clair
+#    - Jamais retournés au client
+#
+# 3. AUDIT ET LOGGING
+#    - Chaque login/logout est enregistré
+#    - Les erreurs d'authentification sont loggées
+#    - Adresse IP et timestamp sont enregistrés
+#
+# 4. ERREURS INTENTIONNELLES
+#    - Les messages d'erreur sont volontairement génériques
+#    - "Email ou mot de passe incorrect" ne dit pas lequel est faux
+#    - Cela prévient les attaques de énumération
+#
+# 5. PROCHAINES ÉTAPES
+#    - Ajouter un système de rate-limiting
+#    - Ajouter un système de 2FA (authentification à deux facteurs)
+#    - Ajouter une fonction "Oublié mon mot de passe"
+#    - Ajouter une confirmation d'email
+#
+###############################################################################

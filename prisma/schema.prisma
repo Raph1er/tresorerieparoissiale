@@ -1,0 +1,203 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+//////////////////////////////////////////////////////
+// ENUMS (Types fixes du système)
+//////////////////////////////////////////////////////
+
+/// Types d'opérations financières
+enum TypeTransaction {
+  ENTREE
+  SORTIE
+}
+
+/// Statut d’une dépense (contrôle interne)
+enum StatutValidation {
+  BROUILLON
+  EN_ATTENTE
+  VALIDEE
+  REJETEE
+}
+
+/// Rôles des utilisateurs
+enum RoleUtilisateur {
+  ADMIN
+  TRESORIER
+  RESPONSABLE
+  AUDITEUR
+}
+
+//////////////////////////////////////////////////////
+// UTILISATEURS
+//////////////////////////////////////////////////////
+
+model Utilisateur {
+  id            Int      @id @default(autoincrement())
+  nom           String
+  email         String   @unique
+  motDePasse    String
+  role          RoleUtilisateur
+  actif         Boolean  @default(true)
+
+  creeLe        DateTime @default(now())
+  modifieLe     DateTime @updatedAt
+
+  /// Relations
+  transactions  Transaction[]
+  validations   ValidationDepense[]
+  journaux      JournalAction[]
+}
+
+//////////////////////////////////////////////////////
+// CATEGORIES (entièrement paramétrables)
+//////////////////////////////////////////////////////
+
+model Categorie {
+  id            Int      @id @default(autoincrement())
+  nom           String
+  type          TypeTransaction
+  description   String?
+  estSysteme    Boolean  @default(false) 
+  actif         Boolean  @default(true)
+
+  creeLe        DateTime @default(now())
+
+  /// Relation hiérarchique (sous-catégories)
+  parentId      Int?
+  parent        Categorie? @relation("SousCategories", fields: [parentId], references: [id])
+  sousCategories Categorie[] @relation("SousCategories")
+
+  transactions  Transaction[]
+}
+
+//////////////////////////////////////////////////////
+// EVENEMENTS (ex : Moisson 2026)
+//////////////////////////////////////////////////////
+
+model Evenement {
+  id            Int      @id @default(autoincrement())
+  nom           String
+  description   String?
+  dateDebut     DateTime
+  dateFin       DateTime?
+
+  actif         Boolean  @default(true)
+  creeLe        DateTime @default(now())
+
+  transactions  Transaction[]
+}
+
+//////////////////////////////////////////////////////
+// TRANSACTIONS (coeur du système)
+//////////////////////////////////////////////////////
+
+model Transaction {
+  id              Int      @id @default(autoincrement())
+
+  type            TypeTransaction
+  montant         Float
+  description     String?
+  dateOperation   DateTime @default(now())
+
+  modePaiement    String?
+  pieceJustificative String?
+
+  estSupprime     Boolean  @default(false) // suppression logique
+
+  creeLe          DateTime @default(now())
+  modifieLe       DateTime @updatedAt
+
+  //////////////////////////////////////////////////////
+  // Relations
+  //////////////////////////////////////////////////////
+
+  categorieId     Int
+  categorie       Categorie @relation(fields: [categorieId], references: [id])
+
+  utilisateurId   Int
+  utilisateur     Utilisateur @relation(fields: [utilisateurId], references: [id])
+
+  evenementId     Int?
+  evenement       Evenement? @relation(fields: [evenementId], references: [id])
+
+  validations     ValidationDepense[]
+  repartitionDime RepartitionDime?
+}
+
+//////////////////////////////////////////////////////
+// VALIDATION DES DEPENSES (double validation possible)
+//////////////////////////////////////////////////////
+
+model ValidationDepense {
+  id              Int      @id @default(autoincrement())
+
+  transactionId   Int
+  transaction     Transaction @relation(fields: [transactionId], references: [id])
+
+  validateurId    Int
+  validateur      Utilisateur @relation(fields: [validateurId], references: [id])
+
+  statut          StatutValidation
+  commentaire     String?
+
+  valideLe        DateTime @default(now())
+}
+
+//////////////////////////////////////////////////////
+// MODULE SPECIAL : REPARTITION DES DIMES
+//////////////////////////////////////////////////////
+
+model RepartitionDime {
+  id                Int      @id @default(autoincrement())
+
+  transactionId     Int      @unique
+  transaction       Transaction @relation(fields: [transactionId], references: [id])
+
+  totalDime         Float
+
+  partParoisseMere  Float
+  partCaisseLocale  Float
+  partResponsable   Float
+  partLevites       Float
+
+  creeLe            DateTime @default(now())
+}
+
+//////////////////////////////////////////////////////
+// PARAMETRES DE REPARTITION (modifiable dans le futur)
+//////////////////////////////////////////////////////
+
+model RegleRepartitionDime {
+  id                   Int      @id @default(autoincrement())
+
+  pourcentageParoisseMere Float
+  pourcentageCaisseLocale Float
+  pourcentageResponsable  Float
+  pourcentageLevites      Float
+
+  actif                Boolean @default(true)
+  creeLe               DateTime @default(now())
+}
+
+//////////////////////////////////////////////////////
+// JOURNAL D’AUDIT (traçabilité complète)
+//////////////////////////////////////////////////////
+
+model JournalAction {
+  id            Int      @id @default(autoincrement())
+
+  utilisateurId Int
+  utilisateur   Utilisateur @relation(fields: [utilisateurId], references: [id])
+
+  action        String
+  description   String?
+  adresseIP     String?
+
+  creeLe        DateTime @default(now())
+}

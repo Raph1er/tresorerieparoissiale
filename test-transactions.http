@@ -1,0 +1,478 @@
+###############################################################################
+# TESTS - MODULE TRANSACTIONS
+#
+# Plateforme de comptabilité pour l'Église du Christianisme Céleste
+# Module: Transactions (CRUD + filtres + validations métier)
+#
+# Utilisation Thunder Client / REST Client:
+# 1. Lancer l'app: npm run dev
+# 2. Exécuter les logins pour récupérer les tokens
+# 3. Renseigner manuellement les variables TOKEN si nécessaire
+# 4. S'assurer que des catégories et évènements existent
+# 5. Exécuter les requêtes dans l'ordre proposé
+###############################################################################
+
+###############################################################################
+# CONFIGURATION
+###############################################################################
+
+@BASE_URL = http://localhost:3000
+
+@ADMIN_EMAIL = admin@eglise.com
+@ADMIN_PASSWORD = AdminSecure2026!
+
+@RESPONSABLE_EMAIL = responsable@eglise.com
+@RESPONSABLE_PASSWORD = ResponsablePass2026!
+
+@TRESORIER_EMAIL = tresorier.test@eglise.com
+@TRESORIER_PASSWORD = SecurePassword123!
+
+@AUDITEUR_EMAIL = auditeur@eglise.com
+@AUDITEUR_PASSWORD = AuditeurPass2026!
+
+# Collez ici les tokens retournés par les requêtes de login.
+@ADMIN_TOKEN = REMPLACER_PAR_TOKEN_ADMIN
+@RESPONSABLE_TOKEN = REMPLACER_PAR_TOKEN_RESPONSABLE
+@TRESORIER_TOKEN = REMPLACER_PAR_TOKEN_TRESORIER
+@AUDITEUR_TOKEN = REMPLACER_PAR_TOKEN_AUDITEUR
+
+# IDs d'entités existantes (à adapter selon votre base)
+@CATEGORIE_ENTREE_ID = 1
+@CATEGORIE_SORTIE_ID = 2
+@EVENEMENT_ID = 1
+
+###############################################################################
+# 0. LOGIN - RÉCUPÉRER LES TOKENS
+###############################################################################
+
+### 0.1 Login Admin
+POST {{BASE_URL}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{ADMIN_EMAIL}}",
+  "motDePasse": "{{ADMIN_PASSWORD}}"
+}
+
+### 0.2 Login Responsable
+POST {{BASE_URL}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{RESPONSABLE_EMAIL}}",
+  "motDePasse": "{{RESPONSABLE_PASSWORD}}"
+}
+
+### 0.3 Login Trésorier
+POST {{BASE_URL}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{TRESORIER_EMAIL}}",
+  "motDePasse": "{{TRESORIER_PASSWORD}}"
+}
+
+### 0.4 Login Auditeur
+POST {{BASE_URL}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{AUDITEUR_EMAIL}}",
+  "motDePasse": "{{AUDITEUR_PASSWORD}}"
+}
+
+###############################################################################
+# 1. CRÉATION (POST /api/transactions)
+###############################################################################
+
+### 1.1 Créer transaction ENTREE - Dîme (Admin)
+# Attendu: 201 Created
+POST {{BASE_URL}}/api/transactions
+Content-Type: application/json
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+{
+  "type": "ENTREE",
+  "montant": 50000,
+  "description": "Dîme du dimanche - Culte de Actions de Grâces",
+  "dateOperation": "2026-03-08T10:00:00.000Z",
+  "modePaiement": "Espèces",
+  "categorieId": {{CATEGORIE_ENTREE_ID}},
+  "evenementId": {{EVENEMENT_ID}}
+}
+
+### 1.2 Créer transaction ENTREE - Cotisation (Responsable)
+# Attendu: 201 Created
+POST {{BASE_URL}}/api/transactions
+Content-Type: application/json
+Authorization: Bearer {{RESPONSABLE_TOKEN}}
+
+{
+  "type": "ENTREE",
+  "montant": 25000,
+  "description": "Cotisations mensuelles des fidèles",
+  "dateOperation": "2026-03-01T09:00:00.000Z",
+  "modePaiement": "Espèces + Mobile Money",
+  "categorieId": {{CATEGORIE_ENTREE_ID}}
+}
+
+### 1.3 Créer transaction SORTIE - Assistance orphelins (Trésorier)
+# Attendu: 201 Created
+POST {{BASE_URL}}/api/transactions
+Content-Type: application/json
+Authorization: Bearer {{TRESORIER_TOKEN}}
+
+{
+  "type": "SORTIE",
+  "montant": 15000,
+  "description": "Assistance aux orphelins - Mars 2026",
+  "dateOperation": "2026-03-05T14:30:00.000Z",
+  "modePaiement": "Espèces",
+  "pieceJustificative": "/uploads/facture-orphelins-mars26.pdf",
+  "categorieId": {{CATEGORIE_SORTIE_ID}}
+}
+
+### 1.4 Créer transaction ENTREE - Action de grâce
+# Attendu: 201 Created
+POST {{BASE_URL}}/api/transactions
+Content-Type: application/json
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+{
+  "type": "ENTREE",
+  "montant": 75000,
+  "description": "Actions de grâce - Nouveau né",
+  "dateOperation": "2026-03-07T11:00:00.000Z",
+  "modePaiement": "Mobile Money",
+  "categorieId": {{CATEGORIE_ENTREE_ID}}
+}
+
+### 1.5 Création refusée - Auditeur (rôle non autorisé)
+# Attendu: 403 Forbidden
+POST {{BASE_URL}}/api/transactions
+Content-Type: application/json
+Authorization: Bearer {{AUDITEUR_TOKEN}}
+
+{
+  "type": "ENTREE",
+  "montant": 10000,
+  "dateOperation": "2026-03-09T10:00:00.000Z",
+  "categorieId": {{CATEGORIE_ENTREE_ID}}
+}
+
+### 1.6 Création refusée - Catégorie invalide
+# Attendu: 400 Bad Request
+POST {{BASE_URL}}/api/transactions
+Content-Type: application/json
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+{
+  "type": "ENTREE",
+  "montant": 10000,
+  "dateOperation": "2026-03-09T10:00:00.000Z",
+  "categorieId": 99999
+}
+
+### 1.7 Création refusée - Type incohérent avec catégorie
+# Attendu: 400 Bad Request (si categorieId correspond à une catégorie SORTIE)
+POST {{BASE_URL}}/api/transactions
+Content-Type: application/json
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+{
+  "type": "ENTREE",
+  "montant": 10000,
+  "dateOperation": "2026-03-09T10:00:00.000Z",
+  "categorieId": {{CATEGORIE_SORTIE_ID}}
+}
+
+### 1.8 Création refusée - Montant zéro
+# Attendu: 400 Bad Request
+POST {{BASE_URL}}/api/transactions
+Content-Type: application/json
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+{
+  "type": "ENTREE",
+  "montant": 0,
+  "dateOperation": "2026-03-09T10:00:00.000Z",
+  "categorieId": {{CATEGORIE_ENTREE_ID}}
+}
+
+### 1.9 Création refusée - Montant négatif
+# Attendu: 400 Bad Request
+POST {{BASE_URL}}/api/transactions
+Content-Type: application/json
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+{
+  "type": "ENTREE",
+  "montant": -5000,
+  "dateOperation": "2026-03-09T10:00:00.000Z",
+  "categorieId": {{CATEGORIE_ENTREE_ID}}
+}
+
+### 1.10 Création refusée - Sans token
+# Attendu: 401 Unauthorized
+POST {{BASE_URL}}/api/transactions
+Content-Type: application/json
+
+{
+  "type": "ENTREE",
+  "montant": 10000,
+  "dateOperation": "2026-03-09T10:00:00.000Z",
+  "categorieId": {{CATEGORIE_ENTREE_ID}}
+}
+
+###############################################################################
+# 2. LECTURE LISTE (GET /api/transactions)
+###############################################################################
+
+### 2.1 Lister toutes les transactions (Admin)
+# Attendu: 200 OK
+GET {{BASE_URL}}/api/transactions?page=1&limit=20
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### 2.2 Filtrer transactions de type ENTREE
+# Attendu: 200 OK
+GET {{BASE_URL}}/api/transactions?type=ENTREE&page=1&limit=20
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### 2.3 Filtrer transactions de type SORTIE
+# Attendu: 200 OK
+GET {{BASE_URL}}/api/transactions?type=SORTIE&page=1&limit=20
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### 2.4 Filtrer par catégorie
+# Attendu: 200 OK
+GET {{BASE_URL}}/api/transactions?categorieId={{CATEGORIE_ENTREE_ID}}&page=1&limit=20
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### 2.5 Filtrer par évènement
+# Attendu: 200 OK
+GET {{BASE_URL}}/api/transactions?evenementId={{EVENEMENT_ID}}&page=1&limit=20
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### 2.6 Filtrer par plage de dates
+# Attendu: 200 OK
+GET {{BASE_URL}}/api/transactions?dateOperationDe=2026-03-01&dateOperationJusqua=2026-03-31
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### 2.7 Filtrer par montant minimum
+# Attendu: 200 OK
+GET {{BASE_URL}}/api/transactions?montantMin=20000
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### 2.8 Filtrer par montant maximum
+# Attendu: 200 OK
+GET {{BASE_URL}}/api/transactions?montantMax=50000
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### 2.9 Filtrer par plage de montants
+# Attendu: 200 OK
+GET {{BASE_URL}}/api/transactions?montantMin=10000&montantMax=60000
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### 2.10 Recherche textuelle dans description
+# Attendu: 200 OK
+GET {{BASE_URL}}/api/transactions?search=Dîme
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### 2.11 Tri par date d'opération croissant
+# Attendu: 200 OK
+GET {{BASE_URL}}/api/transactions?orderBy=dateOperation&order=asc
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### 2.12 Tri par montant décroissant
+# Attendu: 200 OK
+GET {{BASE_URL}}/api/transactions?orderBy=montant&order=desc
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### 2.13 Lecture par Auditeur (autorisé)
+# Attendu: 200 OK
+GET {{BASE_URL}}/api/transactions?page=1&limit=10
+Authorization: Bearer {{AUDITEUR_TOKEN}}
+
+### 2.14 Filtres combinés: Type + Date + Montant
+# Attendu: 200 OK
+GET {{BASE_URL}}/api/transactions?type=ENTREE&dateOperationDe=2026-03-01&montantMin=20000&orderBy=montant&order=desc
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### 2.15 Lecture refusée - Sans token
+# Attendu: 401 Unauthorized
+GET {{BASE_URL}}/api/transactions?page=1&limit=10
+
+###############################################################################
+# 3. LECTURE DÉTAIL (GET /api/transactions/[id])
+###############################################################################
+
+### 3.1 Lire transaction ID 1 (adapter l'ID selon votre base)
+# Attendu: 200 OK (si existe)
+GET {{BASE_URL}}/api/transactions/1
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### 3.2 Lire transaction inexistante
+# Attendu: 404 Not Found
+GET {{BASE_URL}}/api/transactions/99999
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### 3.3 Lire transaction avec ID invalide
+# Attendu: 400 Bad Request
+GET {{BASE_URL}}/api/transactions/abc
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### 3.4 Lecture par Auditeur (autorisé)
+# Attendu: 200 OK
+GET {{BASE_URL}}/api/transactions/1
+Authorization: Bearer {{AUDITEUR_TOKEN}}
+
+###############################################################################
+# 4. MISE À JOUR (PUT /api/transactions/[id])
+###############################################################################
+
+### 4.1 Mettre à jour description (Admin)
+# Attendu: 200 OK
+PUT {{BASE_URL}}/api/transactions/1
+Content-Type: application/json
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+{
+  "description": "Dîme du dimanche - Culte d'Actions de Grâces (Modifié)"
+}
+
+### 4.2 Mettre à jour montant et mode de paiement (Responsable)
+# Attendu: 200 OK
+PUT {{BASE_URL}}/api/transactions/2
+Content-Type: application/json
+Authorization: Bearer {{RESPONSABLE_TOKEN}}
+
+{
+  "montant": 30000,
+  "modePaiement": "Mobile Money"
+}
+
+### 4.3 Mettre à jour date d'opération (Trésorier)
+# Attendu: 200 OK
+PUT {{BASE_URL}}/api/transactions/3
+Content-Type: application/json
+Authorization: Bearer {{TRESORIER_TOKEN}}
+
+{
+  "dateOperation": "2026-03-06T15:00:00.000Z"
+}
+
+### 4.4 Ajouter pièce justificative
+# Attendu: 200 OK
+PUT {{BASE_URL}}/api/transactions/4
+Content-Type: application/json
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+{
+  "pieceJustificative": "/uploads/recu-action-grace-mars26.pdf"
+}
+
+### 4.5 Changer catégorie (même type)
+# Attendu: 200 OK (si nouvelle catégorie existe et a le même type)
+PUT {{BASE_URL}}/api/transactions/1
+Content-Type: application/json
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+{
+  "categorieId": {{CATEGORIE_ENTREE_ID}}
+}
+
+### 4.6 Mise à jour refusée - Auditeur
+# Attendu: 403 Forbidden
+PUT {{BASE_URL}}/api/transactions/1
+Content-Type: application/json
+Authorization: Bearer {{AUDITEUR_TOKEN}}
+
+{
+  "description": "Modification par auditeur"
+}
+
+### 4.7 Mise à jour refusée - Type incompatible avec catégorie
+# Attendu: 400 Bad Request
+PUT {{BASE_URL}}/api/transactions/1
+Content-Type: application/json
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+{
+  "type": "SORTIE"
+}
+
+### 4.8 Mise à jour refusée - Montant zéro
+# Attendu: 400 Bad Request
+PUT {{BASE_URL}}/api/transactions/1
+Content-Type: application/json
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+{
+  "montant": 0
+}
+
+### 4.9 Mise à jour refusée - Payload vide
+# Attendu: 400 Bad Request
+PUT {{BASE_URL}}/api/transactions/1
+Content-Type: application/json
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+{}
+
+###############################################################################
+# 5. SUPPRESSION LOGIQUE (DELETE /api/transactions/[id])
+###############################################################################
+
+### 5.1 Suppression logique par Admin
+# Attendu: 200 OK (si pas de répartition dîme)
+DELETE {{BASE_URL}}/api/transactions/4
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### 5.2 Suppression logique par Trésorier
+# Attendu: 200 OK
+DELETE {{BASE_URL}}/api/transactions/2
+Authorization: Bearer {{TRESORIER_TOKEN}}
+
+### 5.3 Suppression refusée - Responsable
+# Attendu: 403 Forbidden
+DELETE {{BASE_URL}}/api/transactions/3
+Authorization: Bearer {{RESPONSABLE_TOKEN}}
+
+### 5.4 Suppression refusée - Auditeur
+# Attendu: 403 Forbidden
+DELETE {{BASE_URL}}/api/transactions/1
+Authorization: Bearer {{AUDITEUR_TOKEN}}
+
+### 5.5 Suppression refusée - Transaction avec répartition dîme
+# Attendu: 400 Bad Request (si la transaction a une répartition)
+DELETE {{BASE_URL}}/api/transactions/1
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### 5.6 Suppression refusée - ID invalide
+# Attendu: 400 Bad Request
+DELETE {{BASE_URL}}/api/transactions/abc
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+###############################################################################
+# 6. CONTRÔLE POST-OPÉRATIONS
+###############################################################################
+
+### 6.1 Vérifier les transactions actives (non supprimées)
+GET {{BASE_URL}}/api/transactions?estSupprime=false&orderBy=dateOperation&order=desc
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### 6.2 Vérifier les transactions supprimées
+GET {{BASE_URL}}/api/transactions?estSupprime=true
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### 6.3 Total des entrées du mois de mars
+GET {{BASE_URL}}/api/transactions?type=ENTREE&dateOperationDe=2026-03-01&dateOperationJusqua=2026-03-31&orderBy=montant&order=desc
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### 6.4 Total des sorties du mois de mars
+GET {{BASE_URL}}/api/transactions?type=SORTIE&dateOperationDe=2026-03-01&dateOperationJusqua=2026-03-31&orderBy=montant&order=desc
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### 6.5 Transactions liées à un évènement spécifique
+GET {{BASE_URL}}/api/transactions?evenementId={{EVENEMENT_ID}}&orderBy=dateOperation&order=asc
+Authorization: Bearer {{ADMIN_TOKEN}}

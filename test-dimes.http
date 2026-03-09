@@ -1,0 +1,256 @@
+###############################################################################
+# TESTS - MODULE DIMES
+#
+# Ce module cree automatiquement:
+# - 1 transaction ENTREE (montant total)
+# - 3 transactions SORTIE:
+#   * Paroisse Mere: 33.33%
+#   * Responsable: 22.22%
+#   * Levites: 11.11%
+# - Le reste (33.34%) reste en caisse locale
+###############################################################################
+
+@BASE_URL = http://localhost:3000
+
+@ADMIN_EMAIL = admin@eglise.com
+@ADMIN_PASSWORD = AdminSecure2026!
+
+@RESPONSABLE_EMAIL = responsable@eglise.com
+@RESPONSABLE_PASSWORD = ResponsablePass2026!
+
+@TRESORIER_EMAIL = tresorier.test@eglise.com
+@TRESORIER_PASSWORD = SecurePassword123!
+
+@AUDITEUR_EMAIL = auditeur@eglise.com
+@AUDITEUR_PASSWORD = AuditeurPass2026!
+
+@ADMIN_TOKEN = REMPLACER_PAR_TOKEN_ADMIN
+@RESPONSABLE_TOKEN = REMPLACER_PAR_TOKEN_RESPONSABLE
+@TRESORIER_TOKEN = REMPLACER_PAR_TOKEN_TRESORIER
+@AUDITEUR_TOKEN = REMPLACER_PAR_TOKEN_AUDITEUR
+
+@EVENEMENT_ID = 1
+
+###############################################################################
+# 0. LOGIN
+###############################################################################
+
+### Login Admin
+POST {{BASE_URL}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{ADMIN_EMAIL}}",
+  "motDePasse": "{{ADMIN_PASSWORD}}"
+}
+
+### Login Responsable
+POST {{BASE_URL}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{RESPONSABLE_EMAIL}}",
+  "motDePasse": "{{RESPONSABLE_PASSWORD}}"
+}
+
+### Login Tresorier
+POST {{BASE_URL}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{TRESORIER_EMAIL}}",
+  "motDePasse": "{{TRESORIER_PASSWORD}}"
+}
+
+### Login Auditeur
+POST {{BASE_URL}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{AUDITEUR_EMAIL}}",
+  "motDePasse": "{{AUDITEUR_PASSWORD}}"
+}
+
+###############################################################################
+# 1. CREATION DE DIMES
+###############################################################################
+
+### 1.1 Creer dime - 100000 (Admin)
+# Attendu: 201 Created
+# Cree automatiquement:
+# - 1 ENTREE: 100000
+# - 3 SORTIES: 33330 (Paroisse) + 22220 (Responsable) + 11110 (Levites)
+# - Caisse locale garde: 33340
+POST {{BASE_URL}}/api/dimes
+Content-Type: application/json
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+{
+  "montant": 100000,
+  "description": "Dime du dimanche - Culte principal",
+  "dateOperation": "2026-03-08T10:00:00.000Z",
+  "modePaiement": "Especes"
+}
+
+### 1.2 Creer dime avec evenement (Responsable)
+# Attendu: 201 Created
+POST {{BASE_URL}}/api/dimes
+Content-Type: application/json
+Authorization: Bearer {{RESPONSABLE_TOKEN}}
+
+{
+  "montant": 50000,
+  "description": "Dime Fete des Moissons",
+  "dateOperation": "2026-03-07T09:00:00.000Z",
+  "modePaiement": "Especes + Mobile Money",
+  "evenementId": {{EVENEMENT_ID}}
+}
+
+### 1.3 Creer dime par Tresorier
+# Attendu: 201 Created
+POST {{BASE_URL}}/api/dimes
+Content-Type: application/json
+Authorization: Bearer {{TRESORIER_TOKEN}}
+
+{
+  "montant": 75000,
+  "description": "Dime Actions de Grace",
+  "dateOperation": "2026-03-09T11:30:00.000Z",
+  "modePaiement": "Mobile Money"
+}
+
+### 1.4 Creation refusee - Auditeur
+# Attendu: 403 Forbidden
+POST {{BASE_URL}}/api/dimes
+Content-Type: application/json
+Authorization: Bearer {{AUDITEUR_TOKEN}}
+
+{
+  "montant": 20000,
+  "dateOperation": "2026-03-09T10:00:00.000Z"
+}
+
+### 1.5 Creation refusee - Montant zero
+# Attendu: 400 Bad Request
+POST {{BASE_URL}}/api/dimes
+Content-Type: application/json
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+{
+  "montant": 0,
+  "dateOperation": "2026-03-09T10:00:00.000Z"
+}
+
+### 1.6 Creation refusee - Montant negatif
+# Attendu: 400 Bad Request
+POST {{BASE_URL}}/api/dimes
+Content-Type: application/json
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+{
+  "montant": -5000,
+  "dateOperation": "2026-03-09T10:00:00.000Z"
+}
+
+### 1.7 Creation refusee - Sans token
+# Attendu: 401 Unauthorized
+POST {{BASE_URL}}/api/dimes
+Content-Type: application/json
+
+{
+  "montant": 10000,
+  "dateOperation": "2026-03-09T10:00:00.000Z"
+}
+
+###############################################################################
+# 2. LECTURE LISTE
+###############################################################################
+
+### 2.1 Liste toutes les repartitions
+# Attendu: 200 OK
+GET {{BASE_URL}}/api/dimes?page=1&limit=20
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### 2.2 Filtrer par date
+# Attendu: 200 OK
+GET {{BASE_URL}}/api/dimes?dateDe=2026-03-01&dateJusqua=2026-03-31
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### 2.3 Tri par montant total decroissant
+# Attendu: 200 OK
+GET {{BASE_URL}}/api/dimes?orderBy=totalDime&order=desc
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### 2.4 Lecture par Auditeur (autorise)
+# Attendu: 200 OK
+GET {{BASE_URL}}/api/dimes?page=1&limit=10
+Authorization: Bearer {{AUDITEUR_TOKEN}}
+
+### 2.5 Lecture refusee - Sans token
+# Attendu: 401 Unauthorized
+GET {{BASE_URL}}/api/dimes?page=1&limit=10
+
+###############################################################################
+# 3. LECTURE DETAIL
+###############################################################################
+
+### 3.1 Lire repartition ID 1 (adapter selon votre base)
+# Attendu: 200 OK
+# Retourne transactionEntree + transactionsGeneres
+GET {{BASE_URL}}/api/dimes/1
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### 3.2 Lire repartition inexistante
+# Attendu: 404 Not Found
+GET {{BASE_URL}}/api/dimes/99999
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### 3.3 Lire avec ID invalide
+# Attendu: 400 Bad Request
+GET {{BASE_URL}}/api/dimes/abc
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+###############################################################################
+# 4. SUPPRESSION
+###############################################################################
+
+### 4.1 Supprimer repartition (Admin)
+# Attendu: 200 OK
+# Supprime logiquement les 4 transactions liees
+DELETE {{BASE_URL}}/api/dimes/1
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### 4.2 Suppression refusee - Responsable
+# Attendu: 403 Forbidden
+DELETE {{BASE_URL}}/api/dimes/2
+Authorization: Bearer {{RESPONSABLE_TOKEN}}
+
+### 4.3 Suppression refusee - Tresorier
+# Attendu: 403 Forbidden
+DELETE {{BASE_URL}}/api/dimes/2
+Authorization: Bearer {{TRESORIER_TOKEN}}
+
+### 4.4 Suppression refusee - ID invalide
+# Attendu: 400 Bad Request
+DELETE {{BASE_URL}}/api/dimes/abc
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+###############################################################################
+# 5. VERIFICATION DES TRANSACTIONS CREEES
+###############################################################################
+
+### 5.1 Lister les transactions ENTREE de type Dimes
+GET {{BASE_URL}}/api/transactions?type=ENTREE&search=Dime
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### 5.2 Lister les transactions SORTIE Paroisse Mere
+GET {{BASE_URL}}/api/transactions?type=SORTIE&search=Paroisse Mere
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### 5.3 Lister les transactions SORTIE Responsable
+GET {{BASE_URL}}/api/transactions?type=SORTIE&search=Responsable
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### 5.4 Lister les transactions SORTIE Levites
+GET {{BASE_URL}}/api/transactions?type=SORTIE&search=Levites
+Authorization: Bearer {{ADMIN_TOKEN}}

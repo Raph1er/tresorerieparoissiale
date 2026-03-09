@@ -1,0 +1,374 @@
+###############################################################################
+# TESTS - MODULE EVENEMENTS
+#
+# Plateforme de comptabilité pour l'Église du Christianisme Céleste
+# Module: Évènements (CRUD + filtres + droits)
+#
+# Utilisation Thunder Client / REST Client:
+# 1. Lancer l'app: npm run dev
+# 2. Exécuter les logins pour récupérer les tokens
+# 3. Renseigner manuellement les variables TOKEN si nécessaire
+# 4. Exécuter les requêtes dans l'ordre proposé
+###############################################################################
+
+###############################################################################
+# CONFIGURATION
+###############################################################################
+
+@BASE_URL = http://localhost:3000
+
+@ADMIN_EMAIL = admin@eglise.com
+@ADMIN_PASSWORD = AdminSecure2026!
+
+@RESPONSABLE_EMAIL = responsable@eglise.com
+@RESPONSABLE_PASSWORD = ResponsablePass2026!
+
+@TRESORIER_EMAIL = tresorier.test@eglise.com
+@TRESORIER_PASSWORD = SecurePassword123!
+
+@AUDITEUR_EMAIL = auditeur@eglise.com
+@AUDITEUR_PASSWORD = AuditeurPass2026!
+
+# Collez ici les tokens retournés par les requêtes de login.
+@ADMIN_TOKEN = REMPLACER_PAR_TOKEN_ADMIN
+@RESPONSABLE_TOKEN = REMPLACER_PAR_TOKEN_RESPONSABLE
+@TRESORIER_TOKEN = REMPLACER_PAR_TOKEN_TRESORIER
+@AUDITEUR_TOKEN = REMPLACER_PAR_TOKEN_AUDITEUR
+
+###############################################################################
+# 0. LOGIN - RÉCUPÉRER LES TOKENS
+###############################################################################
+
+### 0.1 Login Admin
+POST {{BASE_URL}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{ADMIN_EMAIL}}",
+  "motDePasse": "{{ADMIN_PASSWORD}}"
+}
+
+### 0.2 Login Responsable
+POST {{BASE_URL}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{RESPONSABLE_EMAIL}}",
+  "motDePasse": "{{RESPONSABLE_PASSWORD}}"
+}
+
+### 0.3 Login Trésorier
+POST {{BASE_URL}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{TRESORIER_EMAIL}}",
+  "motDePasse": "{{TRESORIER_PASSWORD}}"
+}
+
+### 0.4 Login Auditeur
+POST {{BASE_URL}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{AUDITEUR_EMAIL}}",
+  "motDePasse": "{{AUDITEUR_PASSWORD}}"
+}
+
+###############################################################################
+# 1. CRÉATION (POST /api/evenements)
+###############################################################################
+
+### 1.1 Créer évènement - Fête des Moissons 2026 (Admin)
+# Attendu: 201 Created
+POST {{BASE_URL}}/api/evenements
+Content-Type: application/json
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+{
+  "nom": "Fête des Moissons 2026",
+  "description": "Fête annuelle de la paroisse avec cotisations, quêtes, ALLAGA, bazar et ventes de charité",
+  "dateDebut": "2026-11-01T08:00:00.000Z",
+  "dateFin": "2026-11-07T20:00:00.000Z"
+}
+
+### 1.2 Créer évènement - Assemblée Générale Avril 2026 (Responsable)
+# Attendu: 201 Created
+POST {{BASE_URL}}/api/evenements
+Content-Type: application/json
+Authorization: Bearer {{RESPONSABLE_TOKEN}}
+
+{
+  "nom": "Assemblée Générale Avril 2026",
+  "description": "Assemblée générale trimestrielle de la paroisse",
+  "dateDebut": "2026-04-15T09:00:00.000Z",
+  "dateFin": "2026-04-15T16:00:00.000Z"
+}
+
+### 1.3 Créer évènement - Séminaire Jeunesse Pâques (Trésorier)
+# Attendu: 201 Created
+POST {{BASE_URL}}/api/evenements
+Content-Type: application/json
+Authorization: Bearer {{TRESORIER_TOKEN}}
+
+{
+  "nom": "Séminaire Jeunesse Pâques 2026",
+  "description": "Séminaire spirituel pour les jeunes de la paroisse",
+  "dateDebut": "2026-04-05T07:00:00.000Z",
+  "dateFin": "2026-04-08T18:00:00.000Z"
+}
+
+### 1.4 Créer évènement sans date de fin (Admin)
+# Attendu: 201 Created
+POST {{BASE_URL}}/api/evenements
+Content-Type: application/json
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+{
+  "nom": "Projet Rénovation Église",
+  "description": "Projet de rénovation en cours sans date de fin définie",
+  "dateDebut": "2026-03-01T00:00:00.000Z"
+}
+
+### 1.5 Création refusée - Auditeur (rôle non autorisé)
+# Attendu: 403 Forbidden
+POST {{BASE_URL}}/api/evenements
+Content-Type: application/json
+Authorization: Bearer {{AUDITEUR_TOKEN}}
+
+{
+  "nom": "Test Auditeur",
+  "dateDebut": "2026-06-01T00:00:00.000Z"
+}
+
+### 1.6 Création refusée - Nom dupliqué
+# Attendu: 400 Bad Request
+POST {{BASE_URL}}/api/evenements
+Content-Type: application/json
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+{
+  "nom": "Fête des Moissons 2026",
+  "dateDebut": "2027-11-01T00:00:00.000Z"
+}
+
+### 1.7 Création refusée - Date de fin avant date de début
+# Attendu: 400 Bad Request
+POST {{BASE_URL}}/api/evenements
+Content-Type: application/json
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+{
+  "nom": "Évènement Dates Inversées",
+  "dateDebut": "2026-12-31T00:00:00.000Z",
+  "dateFin": "2026-01-01T00:00:00.000Z"
+}
+
+### 1.8 Création refusée - Date trop ancienne (> 1 an passé)
+# Attendu: 400 Bad Request
+POST {{BASE_URL}}/api/evenements
+Content-Type: application/json
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+{
+  "nom": "Évènement Ancien",
+  "dateDebut": "2024-01-01T00:00:00.000Z"
+}
+
+### 1.9 Création refusée - Sans token
+# Attendu: 401 Unauthorized
+POST {{BASE_URL}}/api/evenements
+Content-Type: application/json
+
+{
+  "nom": "Sans Token",
+  "dateDebut": "2026-06-01T00:00:00.000Z"
+}
+
+### 1.10 Création refusée - Date invalide
+# Attendu: 400 Bad Request
+POST {{BASE_URL}}/api/evenements
+Content-Type: application/json
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+{
+  "nom": "Date Invalide",
+  "dateDebut": "date-invalide"
+}
+
+###############################################################################
+# 2. LECTURE LISTE (GET /api/evenements)
+###############################################################################
+
+### 2.1 Lister tous les évènements (Admin)
+# Attendu: 200 OK
+GET {{BASE_URL}}/api/evenements?page=1&limit=20
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### 2.2 Filtrer évènements actifs seulement
+# Attendu: 200 OK
+GET {{BASE_URL}}/api/evenements?actif=true&page=1&limit=20
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### 2.3 Recherche textuelle
+# Attendu: 200 OK
+GET {{BASE_URL}}/api/evenements?search=Moissons
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### 2.4 Filtrer par plage de dates de début
+# Attendu: 200 OK
+GET {{BASE_URL}}/api/evenements?dateDebutDe=2026-04-01&dateDebutJusqua=2026-12-31
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### 2.5 Filtrer évènements en cours
+# Attendu: 200 OK
+GET {{BASE_URL}}/api/evenements?enCours=true
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### 2.6 Tri par date de début croissant
+# Attendu: 200 OK
+GET {{BASE_URL}}/api/evenements?orderBy=dateDebut&order=asc
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### 2.7 Tri par nom alphabétique
+# Attendu: 200 OK
+GET {{BASE_URL}}/api/evenements?orderBy=nom&order=asc
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### 2.8 Lecture par Auditeur (autorisé)
+# Attendu: 200 OK
+GET {{BASE_URL}}/api/evenements?page=1&limit=10
+Authorization: Bearer {{AUDITEUR_TOKEN}}
+
+### 2.9 Lecture refusée - Sans token
+# Attendu: 401 Unauthorized
+GET {{BASE_URL}}/api/evenements?page=1&limit=10
+
+### 2.10 Lecture refusée - Query invalide
+# Attendu: 400 Bad Request
+GET {{BASE_URL}}/api/evenements?page=0&limit=200
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+###############################################################################
+# 3. LECTURE DÉTAIL (GET /api/evenements/[id])
+###############################################################################
+
+### 3.1 Lire évènement ID 1 (adapter l'ID selon votre base)
+# Attendu: 200 OK (si existe)
+GET {{BASE_URL}}/api/evenements/1
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### 3.2 Lire évènement inexistant
+# Attendu: 404 Not Found
+GET {{BASE_URL}}/api/evenements/99999
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### 3.3 Lire évènement avec ID invalide
+# Attendu: 400 Bad Request
+GET {{BASE_URL}}/api/evenements/abc
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+###############################################################################
+# 4. MISE À JOUR (PUT /api/evenements/[id])
+###############################################################################
+
+### 4.1 Mettre à jour nom et description (Admin)
+# Attendu: 200 OK
+PUT {{BASE_URL}}/api/evenements/1
+Content-Type: application/json
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+{
+  "nom": "Grande Fête des Moissons 2026",
+  "description": "Fête annuelle avec collectes spéciales pour orphelins et veuves"
+}
+
+### 4.2 Mettre à jour dates (Responsable)
+# Attendu: 200 OK
+PUT {{BASE_URL}}/api/evenements/2
+Content-Type: application/json
+Authorization: Bearer {{RESPONSABLE_TOKEN}}
+
+{
+  "dateDebut": "2026-04-16T09:00:00.000Z",
+  "dateFin": "2026-04-16T17:00:00.000Z"
+}
+
+### 4.3 Désactiver un évènement (Trésorier)
+# Attendu: 200 OK
+PUT {{BASE_URL}}/api/evenements/3
+Content-Type: application/json
+Authorization: Bearer {{TRESORIER_TOKEN}}
+
+{
+  "actif": false
+}
+
+### 4.4 Mise à jour refusée - Auditeur
+# Attendu: 403 Forbidden
+PUT {{BASE_URL}}/api/evenements/1
+Content-Type: application/json
+Authorization: Bearer {{AUDITEUR_TOKEN}}
+
+{
+  "nom": "Modification par auditeur"
+}
+
+### 4.5 Mise à jour refusée - Dates incohérentes
+# Attendu: 400 Bad Request
+PUT {{BASE_URL}}/api/evenements/1
+Content-Type: application/json
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+{
+  "dateDebut": "2026-12-31T00:00:00.000Z",
+  "dateFin": "2026-01-01T00:00:00.000Z"
+}
+
+### 4.6 Mise à jour refusée - Payload vide
+# Attendu: 400 Bad Request
+PUT {{BASE_URL}}/api/evenements/1
+Content-Type: application/json
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+{}
+
+###############################################################################
+# 5. SUPPRESSION LOGIQUE (DELETE /api/evenements/[id])
+###############################################################################
+
+### 5.1 Suppression logique par Admin
+# Attendu: 200 OK (si non utilisé par transactions)
+DELETE {{BASE_URL}}/api/evenements/4
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### 5.2 Suppression refusée - Responsable
+# Attendu: 403 Forbidden
+DELETE {{BASE_URL}}/api/evenements/3
+Authorization: Bearer {{RESPONSABLE_TOKEN}}
+
+### 5.3 Suppression refusée - Évènement utilisé par transactions
+# Attendu: 400 Bad Request (si des transactions existent)
+DELETE {{BASE_URL}}/api/evenements/1
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### 5.4 Suppression refusée - ID invalide
+# Attendu: 400 Bad Request
+DELETE {{BASE_URL}}/api/evenements/abc
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+###############################################################################
+# 6. CONTRÔLE POST-OPÉRATIONS
+###############################################################################
+
+### 6.1 Vérifier les évènements actifs
+GET {{BASE_URL}}/api/evenements?actif=true&orderBy=dateDebut&order=asc
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### 6.2 Vérifier les évènements à venir (après aujourd'hui)
+GET {{BASE_URL}}/api/evenements?dateDebutDe=2026-03-10&orderBy=dateDebut&order=asc
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### 6.3 Vérifier les évènements en cours
+GET {{BASE_URL}}/api/evenements?enCours=true
+Authorization: Bearer {{ADMIN_TOKEN}}

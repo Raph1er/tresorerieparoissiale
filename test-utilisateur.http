@@ -1,0 +1,405 @@
+# ###############################################################################
+# # TESTS - MODULE UTILISATEURS
+# # 
+# # Plateforme de comptabilité pour l'Église du Christianisme Céleste
+# # Module: Gestion des Utilisateurs (CRUD)
+# #
+# # Prérequis:
+# # 1. Module d'authentification doit être complètement fonctionnel
+# # 2. Au moins un utilisateur ADMIN créé via /api/auth/register
+# # 3. Token JWT valide
+# ###############################################################################
+
+# @BASE_URL = http://localhost:3000
+# @ADMIN_EMAIL = admin@eglise.com
+# @ADMIN_PASSWORD = AdminSecure2026!
+# @TRESORIER_EMAIL = tresorier.test@eglise.com
+# @TRESORIER_PASSWORD = SecurePassword123!
+
+# ###############################################################################
+# # 0. AUTHENTIFICATION - OBTENIR LES TOKENS
+# ###############################################################################
+
+# ### 0.1 Login Admin (pour obtenir le token)
+# # Résultat attendu: 200 OK + Token
+# # À exécuter en premier pour obtenir le @ADMIN_TOKEN
+# POST {{BASE_URL}}/api/auth/login
+# Content-Type: application/json
+
+# {
+#   "email": "{{ADMIN_EMAIL}}",
+#   "motDePasse": "{{ADMIN_PASSWORD}}"
+# }
+
+# ### 0.2 Login Trésorier
+# # Résultat attendu: 200 OK + Token
+# POST {{BASE_URL}}/api/auth/login
+# Content-Type: application/json
+
+# {
+#   "email": "{{TRESORIER_EMAIL}}",
+#   "motDePasse": "{{TRESORIER_PASSWORD}}"
+# }
+
+# ###############################################################################
+# # 1. CRÉER DES UTILISATEURS (POST /api/utilisateurs)
+# ###############################################################################
+
+# ### 1.1 Créer un utilisateur RESPONSABLE - Succès
+# # Description: Admin crée un utilisateur RESPONSABLE
+# # Résultat attendu: 201 Created
+# # Token: {{ADMIN_TOKEN}} (obtenu depuis 0.1)
+# POST {{BASE_URL}}/api/utilisateurs
+# Content-Type: application/json
+# Authorization: Bearer {{ADMIN_TOKEN}}
+
+# {
+#   "nom": "Marc Responsable",
+#   "email": "marc.responsable@eglise.com",
+#   "motDePasse": "ResponsablePass2026!",
+#   "role": "RESPONSABLE"
+# }
+
+# ### 1.2 Créer un utilisateur AUDITEUR - Succès
+# # Résultat attendu: 201 Created
+# POST {{BASE_URL}}/api/utilisateurs
+# Content-Type: application/json
+# Authorization: Bearer {{ADMIN_TOKEN}}
+
+# {
+#   "nom": "Anne Auditeur",
+#   "email": "anne.auditeur@eglise.com",
+#   "motDePasse": "AuditeurPass2026!",
+#   "role": "AUDITEUR"
+# }
+
+# ### 1.3 Créer un utilisateur - Email manquant
+# # Résultat attendu: 400 Bad Request
+# POST {{BASE_URL}}/api/utilisateurs
+# Content-Type: application/json
+# Authorization: Bearer {{ADMIN_TOKEN}}
+
+# {
+#   "nom": "Test Sans Email",
+#   "motDePasse": "Password123!",
+#   "role": "TRESORIER"
+# }
+
+# ### 1.4 Créer un utilisateur - Mot de passe trop court
+# # Résultat attendu: 400 Bad Request
+# POST {{BASE_URL}}/api/utilisateurs
+# Content-Type: application/json
+# Authorization: Bearer {{ADMIN_TOKEN}}
+
+# {
+#   "nom": "Test Short Password",
+#   "email": "test.short@eglise.com",
+#   "motDePasse": "Short",
+#   "role": "TRESORIER"
+# }
+
+# ### 1.5 Créer un utilisateur - Email existant
+# # Résultat attendu: 400 Bad Request
+# # Note: Exécuter 1.1 d'abord pour créer le conflit
+# POST {{BASE_URL}}/api/utilisateurs
+# Content-Type: application/json
+# Authorization: Bearer {{ADMIN_TOKEN}}
+
+# {
+#   "nom": "Autre Marc",
+#   "email": "marc.responsable@eglise.com",
+#   "motDePasse": "AnotherPass2026!",
+#   "role": "TRESORIER"
+# }
+
+# ### 1.6 Créer un utilisateur - Rôle invalide
+# # Résultat attendu: 400 Bad Request
+# POST {{BASE_URL}}/api/utilisateurs
+# Content-Type: application/json
+# Authorization: Bearer {{ADMIN_TOKEN}}
+
+# {
+#   "nom": "Test Invalid Role",
+#   "email": "test.invalid.role@eglise.com",
+#   "motDePasse": "Password123!",
+#   "role": "SUPER_ADMIN"
+# }
+
+# ### 1.7 Créer un utilisateur - Sans authentification
+# # Résultat attendu: 401 Unauthorized
+# POST {{BASE_URL}}/api/utilisateurs
+# Content-Type: application/json
+
+# {
+#   "nom": "Test No Auth",
+#   "email": "test.noauth@eglise.com",
+#   "motDePasse": "Password123!",
+#   "role": "TRESORIER"
+# }
+
+# ### 1.8 Créer un utilisateur - Token invalide
+# # Résultat attendu: 401 Unauthorized
+# POST {{BASE_URL}}/api/utilisateurs
+# Content-Type: application/json
+# Authorization: Bearer invalid.token.here
+
+# {
+#   "nom": "Test Invalid Token",
+#   "email": "test.invalidtoken@eglise.com",
+#   "motDePasse": "Password123!",
+#   "role": "TRESORIER"
+# }
+
+# ### 1.9 Créer un utilisateur - Trésorier (non autorisé)
+# # Résultat attendu: 403 Forbidden
+# # Token: {{TRESORIER_TOKEN}} (utilisateur non-admin)
+# POST {{BASE_URL}}/api/utilisateurs
+# Content-Type: application/json
+# Authorization: Bearer {{TRESORIER_TOKEN}}
+
+# {
+#   "nom": "Test Tresorier Creation",
+#   "email": "test.tresorier.create@eglise.com",
+#   "motDePasse": "Password123!",
+#   "role": "TRESORIER"
+# }
+
+# ###############################################################################
+# # 2. RÉCUPÉRER LES UTILISATEURS (GET /api/utilisateurs)
+# ###############################################################################
+
+# ### 2.1 Récupérer tous les utilisateurs - Admin
+# # Résultat attendu: 200 OK + Liste paginée
+# POST {{BASE_URL}}/api/utilisateurs?page=1&limit=10
+# Content-Type: application/json
+# Authorization: Bearer {{ADMIN_TOKEN}}
+
+# ### 2.2 Récupérer avec pagination - Page 2
+# # Résultat attendu: 200 OK
+# GET {{BASE_URL}}/api/utilisateurs?page=2&limit=5
+# Authorization: Bearer {{ADMIN_TOKEN}}
+
+# ### 2.3 Récupérer avec recherche
+# # Résultat attendu: 200 OK + Utilisateurs contenant "Marc"
+# GET {{BASE_URL}}/api/utilisateurs?search=Marc
+# Authorization: Bearer {{ADMIN_TOKEN}}
+
+# ### 2.4 Récupérer avec filtre de rôle
+# # Résultat attendu: 200 OK + Seulement les RESPONSABLE
+# GET {{BASE_URL}}/api/utilisateurs?role=RESPONSABLE
+# Authorization: Bearer {{ADMIN_TOKEN}}
+
+# ### 2.5 Récupérer avec filtre actif
+# # Résultat attendu: 200 OK + Seulement les utilisateurs actifs
+# GET {{BASE_URL}}/api/utilisateurs?actif=true
+# Authorization: Bearer {{ADMIN_TOKEN}}
+
+# ### 2.6 Récupérer avec tri
+# # Résultat attendu: 200 OK + Trié par email décroissant
+# GET {{BASE_URL}}/api/utilisateurs?orderBy=email&order=desc
+# Authorization: Bearer {{ADMIN_TOKEN}}
+
+# ### 2.7 Récupérer - Responsable (autorisé)
+# # Résultat attendu: 200 OK
+# POST {{BASE_URL}}/api/utilisateurs?page=1&limit=10
+# Content-Type: application/json
+# Authorization: Bearer {{RESPONSABLE_TOKEN}}
+
+# ### 2.8 Récupérer - Auditeur (autorisé)
+# # Résultat attendu: 200 OK
+# GET {{BASE_URL}}/api/utilisateurs?page=1&limit=10
+# Authorization: Bearer {{AUDITEUR_TOKEN}}
+
+# ### 2.9 Récupérer - Trésorier (non autorisé)
+# # Résultat attendu: 403 Forbidden
+# GET {{BASE_URL}}/api/utilisateurs?page=1&limit=10
+# Authorization: Bearer {{TRESORIER_TOKEN}}
+
+# ### 2.10 Récupérer - Sans authentification
+# # Résultat attendu: 401 Unauthorized
+# GET {{BASE_URL}}/api/utilisateurs?page=1&limit=10
+
+# ###############################################################################
+# # 3. RÉCUPÉRER UN UTILISATEUR SPÉCIFIQUE (GET /api/utilisateurs/[id])
+# ###############################################################################
+
+# ### 3.1 Récupérer ses propres infos - Trésorier
+# # Résultat attendu: 200 OK (utilisateur peut voir ses infos)
+# # ID: L'ID du Trésorier
+# GET {{BASE_URL}}/api/utilisateurs/2
+# Authorization: Bearer {{TRESORIER_TOKEN}}
+
+# ### 3.2 Récupérer les infos d'un autre - Admin
+# # Résultat attendu: 200 OK
+# GET {{BASE_URL}}/api/utilisateurs/3
+# Authorization: Bearer {{ADMIN_TOKEN}}
+
+# ### 3.3 Récupérer un autre utilisateur - Trésorier (non autorisé)
+# # Résultat attendu: 403 Forbidden
+# GET {{BASE_URL}}/api/utilisateurs/4
+# Authorization: Bearer {{TRESORIER_TOKEN}}
+
+# ### 3.4 Récupérer - ID invalide
+# # Résultat attendu: 400 Bad Request
+# GET {{BASE_URL}}/api/utilisateurs/invalid
+# Authorization: Bearer {{ADMIN_TOKEN}}
+
+# ### 3.5 Récupérer - ID non existant
+# # Résultat attendu: 404 Not Found
+# GET {{BASE_URL}}/api/utilisateurs/99999
+# Authorization: Bearer {{ADMIN_TOKEN}}
+
+# ###############################################################################
+# # 4. METTRE À JOUR UN UTILISATEUR (PUT /api/utilisateurs/[id])
+# ###############################################################################
+
+# ### 4.1 Mettre à jour son propre nom - Trésorier
+# # Résultat attendu: 200 OK
+# # Limité: nom et email uniquement
+# PUT {{BASE_URL}}/api/utilisateurs/2
+# Content-Type: application/json
+# Authorization: Bearer {{TRESORIER_TOKEN}}
+
+# {
+#   "nom": "Jean Paul Trésorier Modifié"
+# }
+
+# ### 4.2 Mettre à jour son propre email - Trésorier
+# # Résultat attendu: 200 OK
+# PUT {{BASE_URL}}/api/utilisateurs/2
+# Content-Type: application/json
+# Authorization: Bearer {{TRESORIER_TOKEN}}
+
+# {
+#   "email": "jean.paul.modified@eglise.com"
+# }
+
+# ### 4.3 Mettre à jour son rôle - Trésorier (non autorisé)
+# # Résultat attendu: 200 OK mais rôle non modifié
+# PUT {{BASE_URL}}/api/utilisateurs/2
+# Content-Type: application/json
+# Authorization: Bearer {{TRESORIER_TOKEN}}
+
+# {
+#   "role": "ADMIN"
+# }
+
+# ### 4.4 Mettre à jour un autre utilisateur - Admin
+# # Résultat attendu: 200 OK
+# PUT {{BASE_URL}}/api/utilisateurs/3
+# Content-Type: application/json
+# Authorization: Bearer {{ADMIN_TOKEN}}
+
+# {
+#   "nom": "Marc Responsable Modifié",
+#   "email": "marc.modified@eglise.com",
+#   "actif": false
+# }
+
+# ### 4.5 Mettre à jour le rôle - Admin
+# # Résultat attendu: 200 OK
+# PUT {{BASE_URL}}/api/utilisateurs/3
+# Content-Type: application/json
+# Authorization: Bearer {{ADMIN_TOKEN}}
+
+# {
+#   "role": "AUDITEUR"
+# }
+
+# ### 4.6 Mettre à jour avec email existant - Conflit
+# # Résultat attendu: 409 Conflict
+# PUT {{BASE_URL}}/api/utilisateurs/3
+# Content-Type: application/json
+# Authorization: Bearer {{ADMIN_TOKEN}}
+
+# {
+#   "email": "{{ADMIN_EMAIL}}"
+# }
+
+# ### 4.7 Mettre à jour un autre utilisateur - Trésorier (non autorisé)
+# # Résultat attendu: 403 Forbidden
+# PUT {{BASE_URL}}/api/utilisateurs/3
+# Content-Type: application/json
+# Authorization: Bearer {{TRESORIER_TOKEN}}
+
+# {
+#   "nom": "Tentative Non Autorisée"
+# }
+
+# ### 4.8 Mettre à jour - ID invalide
+# # Résultat attendu: 400 Bad Request
+# PUT {{BASE_URL}}/api/utilisateurs/invalid
+# Content-Type: application/json
+# Authorization: Bearer {{ADMIN_TOKEN}}
+
+# {
+#   "nom": "Test"
+# }
+
+# ### 4.9 Mettre à jour - ID non existant
+# # Résultat attendu: 404 Not Found
+# PUT {{BASE_URL}}/api/utilisateurs/99999
+# Content-Type: application/json
+# Authorization: Bearer {{ADMIN_TOKEN}}
+
+# {
+#   "nom": "Test"
+# }
+
+# ###############################################################################
+# # 5. SUPPRIMER UN UTILISATEUR (DELETE /api/utilisateurs/[id])
+# ###############################################################################
+
+# ### 5.1 Supprimer un utilisateur - Admin
+# # Résultat attendu: 200 OK (désactivation logique)
+# DELETE {{BASE_URL}}/api/utilisateurs/4
+# Authorization: Bearer {{ADMIN_TOKEN}}
+
+# ### 5.2 Supprimer - Trésorier (non autorisé)
+# # Résultat attendu: 403 Forbidden
+# DELETE {{BASE_URL}}/api/utilisateurs/3
+# Authorization: Bearer {{TRESORIER_TOKEN}}
+
+# ### 5.3 Supprimer lui-même - Admin (non autorisé)
+# # Résultat attendu: 400 Bad Request
+# DELETE {{BASE_URL}}/api/utilisateurs/1
+# Authorization: Bearer {{ADMIN_TOKEN}}
+
+# ### 5.4 Supprimer - ID invalide
+# # Résultat attendu: 400 Bad Request
+# DELETE {{BASE_URL}}/api/utilisateurs/invalid
+# Authorization: Bearer {{ADMIN_TOKEN}}
+
+# ### 5.5 Supprimer - ID non existant
+# # Résultat attendu: 404 Not Found
+# DELETE {{BASE_URL}}/api/utilisateurs/99999
+# Authorization: Bearer {{ADMIN_TOKEN}}
+
+# ###############################################################################
+# # 6. SCÉNARIOS D'INTÉGRATION COMPLETS
+# ###############################################################################
+
+# ### 6.1 Scénario: Créer → Lire → Modifier → Supprimer
+# # Instructions:
+# # 1. Exécuter 1.1 (Créer)
+# # 2. Noter l'ID retourné
+# # 3. Exécuter 3.2 avec cet ID (Lire)
+# # 4. Exécuter 4.4 avec cet ID (Modifier)
+# # 5. Exécuter 5.1 avec cet ID (Supprimer)
+# # Résultat attendu: Tous les appels réussissent
+
+# ###############################################################################
+# # NOTES IMPORTANTES
+# ###############################################################################
+
+# # 1. VARIABLES À ADAPTER
+# #    - Remplacer {{ADMIN_TOKEN}} par le token obtenu depuis 0.1
+# #    - Remplacer {{TRESORIER_TOKEN}} par le token obtenu depuis 0.2
+# #    - Remplacer {{RESPONSABLE_TOKEN}} par un token responsable
+# #    - Remplacer {{AUDITEUR_TOKEN}} par un token auditeur
+# #
+# # 2. PERMISSIONS PAR RÔLE
+# #    ADMIN: Créer, Lire, Modifier, Supprimer (tous)
+# #    RESPONSABLE: Lire (tous)
+# #    AUDITEUR: Lire (tous)
+# #    TRESORIER: Lire (soi-même), Modifier (soi-même, limité)

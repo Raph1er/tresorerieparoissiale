@@ -1,0 +1,341 @@
+###############################################################################
+# TESTS - MODULE CATEGORIES
+#
+# Plateforme de comptabilite pour l'Eglise du Christianisme Celeste
+# Module: Categories (CRUD + filtres + droits)
+#
+# Utilisation Thunder Client / REST Client:
+# 1. Lancer l'app: npm run dev
+# 2. Executer les logins pour recuperer les tokens
+# 3. Renseigner manuellement les variables TOKEN si necessaire
+# 4. Executer les requetes dans l'ordre propose
+###############################################################################
+
+###############################################################################
+# CONFIGURATION
+###############################################################################
+
+@BASE_URL = http://localhost:3000
+
+@ADMIN_EMAIL = admin@eglise.com
+@ADMIN_PASSWORD = AdminSecure2026!
+
+@RESPONSABLE_EMAIL = responsable@eglise.com
+@RESPONSABLE_PASSWORD = ResponsablePass2026!
+
+@TRESORIER_EMAIL = tresorier.test@eglise.com
+@TRESORIER_PASSWORD = SecurePassword123!
+
+@AUDITEUR_EMAIL = auditeur@eglise.com
+@AUDITEUR_PASSWORD = AuditeurPass2026!
+
+# Collez ici les tokens retournes par les requetes de login.
+@ADMIN_TOKEN = REMPLACER_PAR_TOKEN_ADMIN
+@RESPONSABLE_TOKEN = REMPLACER_PAR_TOKEN_RESPONSABLE
+@TRESORIER_TOKEN = REMPLACER_PAR_TOKEN_TRESORIER
+@AUDITEUR_TOKEN = REMPLACER_PAR_TOKEN_AUDITEUR
+
+###############################################################################
+# 0. LOGIN - RECUPERER LES TOKENS
+###############################################################################
+
+### 0.1 Login Admin
+POST {{BASE_URL}}/api/auth/login
+Content-Type: application/json
+
+{
+	"email": "{{ADMIN_EMAIL}}",
+	"motDePasse": "{{ADMIN_PASSWORD}}"
+}
+
+### 0.2 Login Responsable
+POST {{BASE_URL}}/api/auth/login
+Content-Type: application/json
+
+{
+	"email": "{{RESPONSABLE_EMAIL}}",
+	"motDePasse": "{{RESPONSABLE_PASSWORD}}"
+}
+
+### 0.3 Login Tresorier
+POST {{BASE_URL}}/api/auth/login
+Content-Type: application/json
+
+{
+	"email": "{{TRESORIER_EMAIL}}",
+	"motDePasse": "{{TRESORIER_PASSWORD}}"
+}
+
+### 0.4 Login Auditeur
+POST {{BASE_URL}}/api/auth/login
+Content-Type: application/json
+
+{
+	"email": "{{AUDITEUR_EMAIL}}",
+	"motDePasse": "{{AUDITEUR_PASSWORD}}"
+}
+
+###############################################################################
+# 1. CREATION (POST /api/categories)
+###############################################################################
+
+### 1.1 Creer categorie ENTREE - Dimes (Admin)
+# Attendu: 201 Created
+POST {{BASE_URL}}/api/categories
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsImVtYWlsIjoidHJlc29yaWVyLnRlc3RAZWdsaXNlLmNvbSIsInJvbGUiOiJUUkVTT1JJRVIiLCJpYXQiOjE3NzMwNzE0NjIsImV4cCI6MTc3MzE1Nzg2Mn0.9PxXrFP1qcBKcVZgelNuJaDpWIBTwCmukDCaf1UYEdc",
+
+{
+	"nom": "Dimes",
+	"type": "ENTREE",
+	"description": "Dimes periodiques de la paroisse",
+	"estSysteme": true
+}
+
+### 1.2 Creer categorie ENTREE - Frais de location (Tresorier)
+# Attendu: 201 Created
+POST {{BASE_URL}}/api/categories
+Content-Type: application/json
+Authorization: Bearer {{TRESORIER_TOKEN}}
+
+{
+	"nom": "Frais de location",
+	"type": "ENTREE",
+	"description": "Recettes de location d'espaces"
+}
+
+### 1.3 Creer categorie ENTREE - Actions de grace (Responsable)
+# Attendu: 201 Created
+POST {{BASE_URL}}/api/categories
+Content-Type: application/json
+Authorization: Bearer {{RESPONSABLE_TOKEN}}
+
+{
+	"nom": "Actions de grace",
+	"type": "ENTREE",
+	"description": "Offrandes d'actions de grace"
+}
+
+### 1.4 Creer categorie SORTIE - Assistance aux visionnaires
+# Attendu: 201 Created
+POST {{BASE_URL}}/api/categories
+Content-Type: application/json
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+{
+	"nom": "Assistance aux visionnaires",
+	"type": "SORTIE",
+	"description": "Appui financier aux visionnaires"
+}
+
+### 1.5 Creer categorie SORTIE - Envoi a la Region
+# Attendu: 201 Created
+POST {{BASE_URL}}/api/categories
+Content-Type: application/json
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+{
+	"nom": "Envoi a la Region",
+	"type": "SORTIE",
+	"description": "Reversements regionaux"
+}
+
+### 1.6 Creation refusee - Auditeur (role non autorise)
+# Attendu: 403 Forbidden
+POST {{BASE_URL}}/api/categories
+Content-Type: application/json
+Authorization: Bearer {{AUDITEUR_TOKEN}}
+
+{
+	"nom": "Test Auditeur",
+	"type": "ENTREE"
+}
+
+### 1.7 Creation refusee - Nom duplique meme type
+# Attendu: 400 Bad Request
+POST {{BASE_URL}}/api/categories
+Content-Type: application/json
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+{
+	"nom": "Dimes",
+	"type": "ENTREE"
+}
+
+### 1.8 Creation refusee - type invalide
+# Attendu: 400 Bad Request
+POST {{BASE_URL}}/api/categories
+Content-Type: application/json
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+{
+	"nom": "Type Invalide",
+	"type": "RECETTE"
+}
+
+### 1.9 Creation refusee - sans token
+# Attendu: 401 Unauthorized
+POST {{BASE_URL}}/api/categories
+Content-Type: application/json
+
+{
+	"nom": "Sans Token",
+	"type": "ENTREE"
+}
+
+###############################################################################
+# 2. LECTURE LISTE (GET /api/categories)
+###############################################################################
+
+### 2.1 Lister toutes les categories (Admin)
+# Attendu: 200 OK
+GET {{BASE_URL}}/api/categories?page=1&limit=20
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### 2.2 Filtrer ENTREE
+# Attendu: 200 OK
+GET {{BASE_URL}}/api/categories?page=1&limit=20&type=ENTREE
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### 2.3 Filtrer SORTIE
+# Attendu: 200 OK
+GET {{BASE_URL}}/api/categories?page=1&limit=20&type=SORTIE
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### 2.4 Recherche texte
+# Attendu: 200 OK
+GET {{BASE_URL}}/api/categories?search=region
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### 2.5 Filtrer estSysteme=true
+# Attendu: 200 OK
+GET {{BASE_URL}}/api/categories?estSysteme=true
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### 2.6 Tri par nom asc
+# Attendu: 200 OK
+GET {{BASE_URL}}/api/categories?orderBy=nom&order=asc
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### 2.7 Lecture par Auditeur (autorise)
+# Attendu: 200 OK
+GET {{BASE_URL}}/api/categories?page=1&limit=10
+Authorization: Bearer {{AUDITEUR_TOKEN}}
+
+### 2.8 Lecture refusee - sans token
+# Attendu: 401 Unauthorized
+GET {{BASE_URL}}/api/categories?page=1&limit=10
+
+### 2.9 Lecture refusee - query invalide
+# Attendu: 400 Bad Request
+GET {{BASE_URL}}/api/categories?page=0&limit=200
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+###############################################################################
+# 3. LECTURE DETAIL (GET /api/categories/[id])
+###############################################################################
+
+### 3.1 Lire categorie ID 1 (adapter l'ID selon votre base)
+# Attendu: 200 OK (si existe)
+GET {{BASE_URL}}/api/categories/1
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### 3.2 Lire categorie inexistante
+# Attendu: 404 Not Found
+GET {{BASE_URL}}/api/categories/99999
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### 3.3 Lire categorie avec ID invalide
+# Attendu: 400 Bad Request
+GET {{BASE_URL}}/api/categories/abc
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+###############################################################################
+# 4. MISE A JOUR (PUT /api/categories/[id])
+###############################################################################
+
+### 4.1 Mettre a jour nom/description (Admin)
+# Attendu: 200 OK
+PUT {{BASE_URL}}/api/categories/2
+Content-Type: application/json
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+{
+	"nom": "Frais de location paroissiale",
+	"description": "Recettes de location de la paroisse"
+}
+
+### 4.2 Desactiver une categorie (Responsable)
+# Attendu: 200 OK (si aucune contrainte bloquante)
+PUT {{BASE_URL}}/api/categories/3
+Content-Type: application/json
+Authorization: Bearer {{RESPONSABLE_TOKEN}}
+
+{
+	"actif": false
+}
+
+### 4.3 Mise a jour refusee - Auditeur
+# Attendu: 403 Forbidden
+PUT {{BASE_URL}}/api/categories/2
+Content-Type: application/json
+Authorization: Bearer {{AUDITEUR_TOKEN}}
+
+{
+	"nom": "Nom modifie par auditeur"
+}
+
+### 4.4 Mise a jour refusee - ID invalide
+# Attendu: 400 Bad Request
+PUT {{BASE_URL}}/api/categories/abc
+Content-Type: application/json
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+{
+	"nom": "Invalide"
+}
+
+### 4.5 Mise a jour refusee - payload vide
+# Attendu: 400 Bad Request
+PUT {{BASE_URL}}/api/categories/2
+Content-Type: application/json
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+{}
+
+###############################################################################
+# 5. SUPPRESSION LOGIQUE (DELETE /api/categories/[id])
+###############################################################################
+
+### 5.1 Suppression logique par Admin
+# Attendu: 200 OK (si categorie non systeme et non utilisee)
+DELETE {{BASE_URL}}/api/categories/5
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### 5.2 Suppression refusee - Responsable
+# Attendu: 403 Forbidden
+DELETE {{BASE_URL}}/api/categories/4
+Authorization: Bearer {{RESPONSABLE_TOKEN}}
+
+### 5.3 Suppression refusee - Categorie systeme
+# Attendu: 400 Bad Request (si ID 1 est systeme)
+DELETE {{BASE_URL}}/api/categories/1
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### 5.4 Suppression refusee - ID invalide
+# Attendu: 400 Bad Request
+DELETE {{BASE_URL}}/api/categories/abc
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+###############################################################################
+# 6. CONTROLE POST-OPERATIONS
+###############################################################################
+
+### 6.1 Verifier les categories actives
+GET {{BASE_URL}}/api/categories?actif=true&orderBy=nom&order=asc
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### 6.2 Verifier les categories inactives
+GET {{BASE_URL}}/api/categories?actif=false&orderBy=nom&order=asc
+Authorization: Bearer {{ADMIN_TOKEN}}
+
