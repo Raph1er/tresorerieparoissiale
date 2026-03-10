@@ -278,9 +278,15 @@ export class TransactionRepository {
             };
         }
         if (data.evenementId !== undefined) {
-            updateData.evenement = {
-                connect: { id: data.evenementId },
-            };
+            if (data.evenementId === null) {
+                updateData.evenement = {
+                    disconnect: true,
+                };
+            } else {
+                updateData.evenement = {
+                    connect: { id: data.evenementId },
+                };
+            }
         }
         if (data.estSupprime !== undefined) updateData.estSupprime = data.estSupprime;
 

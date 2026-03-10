@@ -31,7 +31,7 @@ export interface UpdateTransactionDTO {
   modePaiement?: string;
   pieceJustificative?: string;
   categorieId?: number;
-  evenementId?: number;
+  evenementId?: number | null;
   estSupprime?: boolean;
 }
 

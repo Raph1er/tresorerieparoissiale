@@ -1,0 +1,70 @@
+###############################################################################
+# TESTS - MODULE RAPPORTS
+#
+# Utilisation:
+# 1. Lancer l'application: npm run dev
+# 2. Executer un login
+# 3. Remplacer REPORT_TOKEN par un token valide
+###############################################################################
+
+@BASE_URL = http://localhost:3000
+@REPORT_TOKEN = REMPLACER_PAR_TOKEN
+
+###############################################################################
+# 1) RAPPORT GLOBAL SANS FILTRE
+###############################################################################
+
+### 1.1 Rapport global
+GET {{BASE_URL}}/api/rapports
+Authorization: Bearer {{REPORT_TOKEN}}
+
+###############################################################################
+# 2) FILTRES PAR PERIODE
+###############################################################################
+
+### 2.1 Rapport sur mars 2026
+GET {{BASE_URL}}/api/rapports?dateDe=2026-03-01&dateJusqua=2026-03-31
+Authorization: Bearer {{REPORT_TOKEN}}
+
+### 2.2 Rapport entre deux dates ISO
+GET {{BASE_URL}}/api/rapports?dateDe=2026-01-01T00:00:00.000Z&dateJusqua=2026-12-31T23:59:59.999Z
+Authorization: Bearer {{REPORT_TOKEN}}
+
+###############################################################################
+# 3) FILTRES PAR ENTITES
+###############################################################################
+
+### 3.1 Filtrer par categorie
+GET {{BASE_URL}}/api/rapports?categorieId=1
+Authorization: Bearer {{REPORT_TOKEN}}
+
+### 3.2 Filtrer par evenement
+GET {{BASE_URL}}/api/rapports?evenementId=1
+Authorization: Bearer {{REPORT_TOKEN}}
+
+### 3.3 Filtrer par utilisateur
+GET {{BASE_URL}}/api/rapports?utilisateurId=1
+Authorization: Bearer {{REPORT_TOKEN}}
+
+### 3.4 Filtre combine
+GET {{BASE_URL}}/api/rapports?dateDe=2026-01-01&dateJusqua=2026-12-31&categorieId=1&evenementId=1
+Authorization: Bearer {{REPORT_TOKEN}}
+
+###############################################################################
+# 4) CAS D'ERREUR
+###############################################################################
+
+### 4.1 Requete sans token
+GET {{BASE_URL}}/api/rapports
+
+### 4.2 Date invalide
+GET {{BASE_URL}}/api/rapports?dateDe=abc
+Authorization: Bearer {{REPORT_TOKEN}}
+
+### 4.3 Plage de dates incoherente
+GET {{BASE_URL}}/api/rapports?dateDe=2026-12-31&dateJusqua=2026-01-01
+Authorization: Bearer {{REPORT_TOKEN}}
+
+### 4.4 ID categorie invalide
+GET {{BASE_URL}}/api/rapports?categorieId=-5
+Authorization: Bearer {{REPORT_TOKEN}}

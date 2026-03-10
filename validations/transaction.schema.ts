@@ -285,7 +285,7 @@ export function validerUpdateTransactionDTO(
   // Évènement ID (optionnel)
   if (data.evenementId !== undefined) {
     if (data.evenementId === null) {
-      updates.evenementId = undefined; // Pour permettre de retirer l'évènement
+      updates.evenementId = null;
     } else {
       const evenementId = parserEntier(data.evenementId);
       if (!evenementId) {
