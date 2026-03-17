@@ -22,9 +22,12 @@ const transactionService = new TransactionService();
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
   try {
+    // Next.js 16 attend un contexte asynchrone pour les segments dynamiques.
+    const { id } = await context.params;
+
     // 1) Authentification du demandeur.
     const contexte = await validerAuthentification(request);
     if (contexte instanceof NextResponse) {
@@ -43,7 +46,7 @@ export async function GET(
     }
 
     // 3) Validation de l'ID.
-    const validationId = validerIdTransaction(params.id);
+    const validationId = validerIdTransaction(id);
     if (!validationId.success) {
       return NextResponse.json({ erreur: validationId.error }, { status: 400 });
     }
@@ -73,9 +76,12 @@ export async function GET(
  */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
   try {
+    // Même récupération asynchrone de l'identifiant pour la mise à jour.
+    const { id } = await context.params;
+
     // 1) Authentification du demandeur.
     const contexte = await validerAuthentification(request);
     if (contexte instanceof NextResponse) {
@@ -89,7 +95,7 @@ export async function PUT(
     }
 
     // 3) Validation de l'ID.
-    const validationId = validerIdTransaction(params.id);
+    const validationId = validerIdTransaction(id);
     if (!validationId.success) {
       return NextResponse.json({ erreur: validationId.error }, { status: 400 });
     }
@@ -114,7 +120,8 @@ export async function PUT(
       if (
         error.message.includes('introuvable') ||
         error.message.includes('désactivé') ||
-        error.message.includes('ne correspond pas')
+        error.message.includes('ne correspond pas') ||
+        error.message.includes('liée à une dîme')
       ) {
         return NextResponse.json({ erreur: error.message }, { status: 400 });
       }
@@ -134,9 +141,12 @@ export async function PUT(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
   try {
+    // Même récupération asynchrone de l'identifiant pour la suppression.
+    const { id } = await context.params;
+
     // 1) Authentification du demandeur.
     const contexte = await validerAuthentification(request);
     if (contexte instanceof NextResponse) {
@@ -150,7 +160,7 @@ export async function DELETE(
     }
 
     // 3) Validation de l'ID.
-    const validationId = validerIdTransaction(params.id);
+    const validationId = validerIdTransaction(id);
     if (!validationId.success) {
       return NextResponse.json({ erreur: validationId.error }, { status: 400 });
     }

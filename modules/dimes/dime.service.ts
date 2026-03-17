@@ -13,6 +13,7 @@ import type {
   PaginationOptions,
   RepartitionDimeFilter,
   RepartitionDimeResponseDTO,
+  UpdateRepartitionDimeDTO,
 } from './dime.types';
 
 const NOM_CATEGORIE_ENTREE = 'Dimes';
@@ -21,6 +22,169 @@ const NOM_CATEGORIE_RESPONSABLE = 'Dimes - Responsable';
 const NOM_CATEGORIE_LEVITES = 'Dimes - Levites';
 
 export class DimeService {
+  private construireDescriptionBase(transactionId: number): string {
+    return `Repartition - `;
+  }
+
+  private async validerEvenementActif(evenementId: number | null | undefined): Promise<void> {
+    if (evenementId === undefined || evenementId === null) {
+      return;
+    }
+
+    const evenement = await prisma.evenement.findUnique({
+      where: { id: evenementId },
+      select: { id: true, actif: true },
+    });
+
+    if (!evenement || !evenement.actif) {
+      throw new Error('Evenement introuvable ou inactif');
+    }
+  }
+
+  private async trouverTransactionsGenerees(transactionEntreeId: number) {
+    const descriptionBase = this.construireDescriptionBase(transactionEntreeId);
+
+    const transactionsGeneres = await prisma.transaction.findMany({
+      where: {
+        description: {
+          contains: descriptionBase,
+        },
+        type: 'SORTIE',
+        estSupprime: false,
+      },
+      select: { id: true, montant: true, description: true },
+    });
+
+    return {
+      descriptionBase,
+      paroisse: transactionsGeneres.find((t) => t.description?.includes('Paroisse Mere')),
+      responsable: transactionsGeneres.find((t) => t.description?.includes('Responsable')),
+      levites: transactionsGeneres.find((t) => t.description?.includes('Levites')),
+    };
+  }
+
+  private async synchroniserRepartitionParTransactionId(
+    transactionEntreeId: number,
+    data: UpdateRepartitionDimeDTO,
+    updatedById: number,
+    source: 'DIME' | 'TRANSACTION'
+  ): Promise<RepartitionDimeResponseDTO> {
+    const repartition = await dimeRepository.findByTransactionId(transactionEntreeId);
+    if (!repartition) {
+      throw new Error(`Aucune repartition de dime trouvee pour la transaction ${transactionEntreeId}`);
+    }
+
+    const transactionEntree = await prisma.transaction.findUnique({
+      where: { id: transactionEntreeId },
+      select: {
+        id: true,
+        montant: true,
+        description: true,
+        dateOperation: true,
+        modePaiement: true,
+        evenementId: true,
+      },
+    });
+
+    if (!transactionEntree) {
+      throw new Error(`Transaction ENTREE de dime introuvable (ID ${transactionEntreeId})`);
+    }
+
+    await this.validerEvenementActif(data.evenementId);
+
+    const montantFinal = data.montant ?? transactionEntree.montant;
+    if (montantFinal <= 0) {
+      throw new Error('Le montant de la dime doit etre superieur a 0');
+    }
+
+    const dateOperationFinale =
+      data.dateOperation !== undefined
+        ? typeof data.dateOperation === 'string'
+          ? new Date(data.dateOperation)
+          : data.dateOperation
+        : transactionEntree.dateOperation;
+
+    const descriptionFinale =
+      data.description !== undefined ? data.description.trim() || null : transactionEntree.description;
+
+    const modePaiementFinal =
+      data.modePaiement !== undefined ? data.modePaiement.trim() || null : transactionEntree.modePaiement;
+
+    const evenementIdFinal =
+      data.evenementId !== undefined ? data.evenementId : transactionEntree.evenementId;
+
+    const montants = calculerRepartitionDime(montantFinal);
+    const generated = await this.trouverTransactionsGenerees(transactionEntreeId);
+
+    await prisma.$transaction(async (tx) => {
+      await tx.transaction.update({
+        where: { id: transactionEntreeId },
+        data: {
+          montant: montantFinal,
+          description: descriptionFinale,
+          dateOperation: dateOperationFinale,
+          modePaiement: modePaiementFinal,
+          evenementId: evenementIdFinal ?? null,
+        },
+      });
+
+      if (generated.paroisse) {
+        await tx.transaction.update({
+          where: { id: generated.paroisse.id },
+          data: {
+            montant: montants.partParoisseMere,
+            dateOperation: dateOperationFinale,
+            evenementId: evenementIdFinal ?? null,
+            description: `${generated.descriptionBase} - Paroisse Mere`,
+          },
+        });
+      }
+
+      if (generated.responsable) {
+        await tx.transaction.update({
+          where: { id: generated.responsable.id },
+          data: {
+            montant: montants.partResponsable,
+            dateOperation: dateOperationFinale,
+            evenementId: evenementIdFinal ?? null,
+            description: `${generated.descriptionBase} - Responsable`,
+          },
+        });
+      }
+
+      if (generated.levites) {
+        await tx.transaction.update({
+          where: { id: generated.levites.id },
+          data: {
+            montant: montants.partLevites,
+            dateOperation: dateOperationFinale,
+            evenementId: evenementIdFinal ?? null,
+            description: `${generated.descriptionBase} - Levites`,
+          },
+        });
+      }
+
+      await tx.repartitionDime.update({
+        where: { id: repartition.id },
+        data: {
+          totalDime: montants.totalDime,
+          partParoisseMere: montants.partParoisseMere,
+          partCaisseLocale: montants.partCaisseLocale,
+          partResponsable: montants.partResponsable,
+          partLevites: montants.partLevites,
+        },
+      });
+    });
+
+    await logger.log(
+      'TITHES_UPDATED',
+      `Repartition dime synchronisee depuis ${source === 'DIME' ? 'le module dimes' : 'une transaction'} (transaction ENTREE ${transactionEntreeId})`,
+      updatedById
+    );
+
+    return this.getRepartitionById(repartition.id);
+  }
+
   /**
    * Recupere ou cree les categories systeme pour les dimes.
    */
@@ -122,7 +286,7 @@ export class DimeService {
       });
 
       // 2) Creer les 3 transactions SORTIE
-      const descriptionBase = `Repartition dime #${transactionEntree.id}`;
+      const descriptionBase = `Repartition - `;
 
       const transParoisse = await tx.transaction.create({
         data: {
@@ -232,7 +396,7 @@ export class DimeService {
     const transactionsGeneres = await prisma.transaction.findMany({
       where: {
         description: {
-          contains: `Repartition dime #${repartition.transactionId}`,
+          contains: `Repartition - `,
         },
         type: 'SORTIE',
       },
@@ -259,6 +423,45 @@ export class DimeService {
   }
 
   /**
+   * Met a jour une repartition de dime depuis le module Dimes,
+   * puis synchronise les transactions associees.
+   */
+  async updateRepartition(
+    id: number,
+    data: UpdateRepartitionDimeDTO,
+    updatedById: number
+  ): Promise<RepartitionDimeResponseDTO> {
+    const repartition = await dimeRepository.findById(id);
+    if (!repartition) {
+      throw new Error(`Repartition avec l'ID ${id} introuvable`);
+    }
+
+    return this.synchroniserRepartitionParTransactionId(
+      repartition.transactionId,
+      data,
+      updatedById,
+      'DIME'
+    );
+  }
+
+  /**
+   * Synchronise une repartition de dime lorsqu'une transaction ENTREE
+   * liee a une dime est modifiee depuis le module Transactions.
+   */
+  async syncFromTransactionUpdate(
+    transactionEntreeId: number,
+    data: UpdateRepartitionDimeDTO,
+    updatedById: number
+  ): Promise<RepartitionDimeResponseDTO> {
+    return this.synchroniserRepartitionParTransactionId(
+      transactionEntreeId,
+      data,
+      updatedById,
+      'TRANSACTION'
+    );
+  }
+
+  /**
    * Liste paginee des repartitions.
    */
   async getAllRepartitions(
@@ -281,7 +484,7 @@ export class DimeService {
         const transactionsGeneres = await prisma.transaction.findMany({
           where: {
             description: {
-              contains: `Repartition dime #${item.transactionId}`,
+              contains: `Repartition - ${item.transactionId}`,
             },
             type: 'SORTIE',
           },
@@ -332,7 +535,7 @@ export class DimeService {
           { id: repartition.transactionId },
           {
             description: {
-              contains: `Repartition dime #${repartition.transactionId}`,
+              contains: `Repartition - `,
             },
           },
         ],

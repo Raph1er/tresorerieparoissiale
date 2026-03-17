@@ -6,6 +6,7 @@ import type {
   CreateRepartitionDimeDTO,
   PaginationOptions,
   RepartitionDimeFilter,
+  UpdateRepartitionDimeDTO,
 } from '@/types/dime';
 
 type ValidationResult<T> =
@@ -33,11 +34,30 @@ function parserDate(value: unknown): Date | null {
   }
 
   if (typeof value === 'string') {
+    const dateOnlyPattern = /^\d{4}-\d{2}-\d{2}$/;
+    if (dateOnlyPattern.test(value)) {
+      const [year, month, day] = value.split('-').map(Number);
+      const now = new Date();
+      return new Date(
+        year,
+        month - 1,
+        day,
+        now.getHours(),
+        now.getMinutes(),
+        now.getSeconds(),
+        now.getMilliseconds()
+      );
+    }
+
     const parsed = new Date(value);
     return Number.isNaN(parsed.getTime()) ? null : parsed;
   }
 
   return null;
+}
+
+function estDateDansLeFutur(date: Date): boolean {
+  return date.getTime() > Date.now();
 }
 
 export function validerCreateRepartitionDimeDTO(
@@ -64,6 +84,13 @@ export function validerCreateRepartitionDimeDTO(
     return {
       success: false,
       error: 'Le champ "dateOperation" est requis et doit etre une date valide',
+    };
+  }
+
+  if (estDateDansLeFutur(dateOperation)) {
+    return {
+      success: false,
+      error: 'La date d\'operation ne peut pas depasser la date actuelle',
     };
   }
 
@@ -102,6 +129,82 @@ export function validerCreateRepartitionDimeDTO(
     success: true,
     data: { montant, description, dateOperation, modePaiement, evenementId },
   };
+}
+
+export function validerUpdateRepartitionDimeDTO(
+  body: unknown
+): ValidationResult<UpdateRepartitionDimeDTO> {
+  if (typeof body !== 'object' || body === null) {
+    return { success: false, error: 'Corps de requete invalide' };
+  }
+
+  const data = body as Record<string, unknown>;
+  const updates: UpdateRepartitionDimeDTO = {};
+
+  if (data.montant !== undefined) {
+    if (typeof data.montant !== 'number' || data.montant <= 0) {
+      return {
+        success: false,
+        error: 'Le champ "montant" doit etre un nombre positif',
+      };
+    }
+    updates.montant = data.montant;
+  }
+
+  if (data.dateOperation !== undefined) {
+    const dateOperation = parserDate(data.dateOperation);
+    if (!dateOperation) {
+      return {
+        success: false,
+        error: 'Le champ "dateOperation" doit etre une date valide',
+      };
+    }
+    if (estDateDansLeFutur(dateOperation)) {
+      return {
+        success: false,
+        error: 'La date d\'operation ne peut pas depasser la date actuelle',
+      };
+    }
+    updates.dateOperation = dateOperation;
+  }
+
+  if (data.description !== undefined) {
+    if (typeof data.description !== 'string') {
+      return { success: false, error: 'Le champ "description" doit etre une chaine' };
+    }
+    updates.description = data.description.trim();
+  }
+
+  if (data.modePaiement !== undefined) {
+    if (typeof data.modePaiement !== 'string') {
+      return { success: false, error: 'Le champ "modePaiement" doit etre une chaine' };
+    }
+    updates.modePaiement = data.modePaiement.trim();
+  }
+
+  if (data.evenementId !== undefined) {
+    if (data.evenementId === null) {
+      updates.evenementId = null;
+    } else {
+      const evenementId = parserEntierPositif(data.evenementId);
+      if (!evenementId) {
+        return {
+          success: false,
+          error: 'Le champ "evenementId" doit etre un entier positif ou null',
+        };
+      }
+      updates.evenementId = evenementId;
+    }
+  }
+
+  if (Object.keys(updates).length === 0) {
+    return {
+      success: false,
+      error: 'Au moins un champ doit etre fourni pour la mise a jour',
+    };
+  }
+
+  return { success: true, data: updates };
 }
 
 export function validerIdRepartitionDime(id: unknown): ValidationResult<number> {

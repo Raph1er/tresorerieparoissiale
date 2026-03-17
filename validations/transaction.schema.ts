@@ -24,10 +24,29 @@ type ValidationResult<T> =
 function parserDate(value: unknown): Date | null {
   if (value instanceof Date) return value;
   if (typeof value === 'string') {
+    const dateOnlyPattern = /^\d{4}-\d{2}-\d{2}$/;
+    if (dateOnlyPattern.test(value)) {
+      const [year, month, day] = value.split('-').map(Number);
+      const now = new Date();
+      return new Date(
+        year,
+        month - 1,
+        day,
+        now.getHours(),
+        now.getMinutes(),
+        now.getSeconds(),
+        now.getMilliseconds()
+      );
+    }
+
     const date = new Date(value);
     return isNaN(date.getTime()) ? null : date;
   }
   return null;
+}
+
+function estDateDansLeFutur(date: Date): boolean {
+  return date.getTime() > Date.now();
 }
 
 /**
@@ -114,6 +133,13 @@ export function validerCreateTransactionDTO(
     return {
       success: false,
       error: 'Le champ "dateOperation" est requis et doit être une date valide (format ISO 8601)',
+    };
+  }
+
+  if (estDateDansLeFutur(dateOperation)) {
+    return {
+      success: false,
+      error: 'La date d\'opération ne peut pas dépasser la date actuelle',
     };
   }
 
@@ -243,6 +269,12 @@ export function validerUpdateTransactionDTO(
       return {
         success: false,
         error: 'Le champ "dateOperation" doit être une date valide (format ISO 8601)',
+      };
+    }
+    if (estDateDansLeFutur(dateOperation)) {
+      return {
+        success: false,
+        error: 'La date d\'opération ne peut pas dépasser la date actuelle',
       };
     }
     updates.dateOperation = dateOperation;

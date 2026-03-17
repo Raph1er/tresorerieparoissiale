@@ -10,6 +10,14 @@ export interface CreateRepartitionDimeDTO {
   evenementId?: number;
 }
 
+export interface UpdateRepartitionDimeDTO {
+  montant?: number;
+  description?: string;
+  dateOperation?: Date | string;
+  modePaiement?: string;
+  evenementId?: number | null;
+}
+
 export interface RepartitionMontants {
   totalDime: number;
   partParoisseMere: number;

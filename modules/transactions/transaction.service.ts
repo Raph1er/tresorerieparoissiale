@@ -6,6 +6,7 @@
 import prisma from '@/lib/prisma';
 import logger from '@/lib/logger';
 import { TransactionRepository } from './transaction.repository';
+import { dimeService } from '@/modules/dimes/dime.service';
 import {
   CreateTransactionDTO,
   UpdateTransactionDTO,
@@ -168,6 +169,58 @@ export class TransactionService {
       if (!evenement.actif) {
         throw new Error(`L'évènement "${evenement.nom}" est désactivé`);
       }
+    }
+
+    // Si la transaction est la transaction ENTREE d'une dîme,
+    // synchroniser via le module dîmes pour maintenir toutes les répartitions cohérentes.
+    const repartitionLiee = await prisma.repartitionDime.findUnique({
+      where: { transactionId: id },
+      select: { id: true },
+    });
+
+    if (repartitionLiee) {
+      const changementType =
+        data.type !== undefined && data.type !== transactionExistante.type;
+      const changementCategorie =
+        data.categorieId !== undefined && data.categorieId !== transactionExistante.categorieId;
+
+      const champsInterdits = [
+        changementType,
+        changementCategorie,
+        data.pieceJustificative !== undefined,
+        data.estSupprime !== undefined,
+      ];
+
+      if (champsInterdits.some(Boolean)) {
+        throw new Error(
+          'Cette transaction est liée à une dîme. Modifiez uniquement montant, description, date, mode de paiement et évènement.'
+        );
+      }
+
+      await dimeService.syncFromTransactionUpdate(
+        id,
+        {
+          montant: data.montant,
+          description: data.description,
+          dateOperation: data.dateOperation,
+          modePaiement: data.modePaiement,
+          evenementId: data.evenementId,
+        },
+        utilisateurId
+      );
+
+      const transactionSynchronisee = await this.repository.findById(id);
+      if (!transactionSynchronisee) {
+        throw new Error(`Transaction avec l'ID ${id} introuvable`);
+      }
+
+      await logger.log(
+        'TRANSACTION_UPDATED',
+        `Transaction ID ${id} mise à jour et synchronisée avec sa répartition de dîme`,
+        utilisateurId
+      );
+
+      return transactionSynchronisee;
     }
 
     // Mettre à jour

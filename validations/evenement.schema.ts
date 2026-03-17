@@ -65,6 +65,10 @@ function parserDate(value: unknown): Date | null {
   return null;
 }
 
+function estDateDansLeFutur(date: Date): boolean {
+  return date.getTime() > Date.now();
+}
+
 export function validerIdEvenement(id: number): ValidationResult<number> {
   if (Number.isNaN(id) || id < 1) {
     return { success: false, error: 'ID invalide' };
@@ -95,6 +99,9 @@ export function validerCreateEvenementDTO(payload: unknown): ValidationResult<Cr
   if (!dateDebutParsed) {
     return { success: false, error: 'La date de début est requise et doit être valide' };
   }
+  if (estDateDansLeFutur(dateDebutParsed)) {
+    return { success: false, error: 'La date de début ne peut pas dépasser la date actuelle' };
+  }
 
   // Date de fin optionnelle
   let dateFinParsed: Date | null = null;
@@ -102,6 +109,9 @@ export function validerCreateEvenementDTO(payload: unknown): ValidationResult<Cr
     dateFinParsed = parserDate(dateFin);
     if (dateFin !== null && !dateFinParsed) {
       return { success: false, error: 'La date de fin doit être valide' };
+    }
+    if (dateFinParsed && estDateDansLeFutur(dateFinParsed)) {
+      return { success: false, error: 'La date de fin ne peut pas dépasser la date actuelle' };
     }
   }
 
@@ -148,6 +158,9 @@ export function validerUpdateEvenementDTO(payload: unknown): ValidationResult<Up
     if (!dateDebutParsed) {
       return { success: false, error: 'La date de début doit être valide' };
     }
+    if (estDateDansLeFutur(dateDebutParsed)) {
+      return { success: false, error: 'La date de début ne peut pas dépasser la date actuelle' };
+    }
     data.dateDebut = dateDebutParsed;
   }
 
@@ -158,6 +171,9 @@ export function validerUpdateEvenementDTO(payload: unknown): ValidationResult<Up
       const dateFinParsed = parserDate(dateFin);
       if (!dateFinParsed) {
         return { success: false, error: 'La date de fin doit être valide ou null' };
+      }
+      if (estDateDansLeFutur(dateFinParsed)) {
+        return { success: false, error: 'La date de fin ne peut pas dépasser la date actuelle' };
       }
       data.dateFin = dateFinParsed;
     }

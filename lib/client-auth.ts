@@ -56,6 +56,14 @@ export function setSession(token: string, user: AuthUser): void {
   localStorage.setItem(USER_KEY, JSON.stringify(user));
 }
 
+export function setAuthUser(user: AuthUser): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  localStorage.setItem(USER_KEY, JSON.stringify(user));
+}
+
 export function clearSession(): void {
   if (typeof window === "undefined") {
     return;

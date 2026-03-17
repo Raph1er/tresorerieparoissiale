@@ -69,13 +69,20 @@ class Logger {
     adresseIP?: string
   ): Promise<void> {
     try {
+      // Le schéma actuel impose utilisateurId NOT NULL avec FK.
+      // Si on n'a pas d'utilisateur identifié (ex: login échoué avant lookup),
+      // on évite l'insert pour ne pas déclencher P2003.
+      if (!userId) {
+        console.log(`[${action}] ${description}`);
+        return;
+      }
+
       // Crée un enregistrement dans la table JournalAction
       // Cet enregistrement sera utilisé pour l'audit
       await prisma.journalAction.create({
         data: {
-          // ID de l'utilisateur (peut être optionnel pour les erreurs de login)
-          // Si userId n'est pas fourni, on utilise 0 ou on rend le champ nullable
-          utilisateurId: userId || 0,
+          // ID de l'utilisateur authentifié ou identifié
+          utilisateurId: userId,
           // Type d'action effectuée
           action,
           // Description détaillée de ce qui s'est passé

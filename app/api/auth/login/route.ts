@@ -66,7 +66,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Un utilisateur inactif ne peut pas se connecter
     if (!utilisateur.actif) {
       // Log l'tentative de connexion d'un utilisateur désactivé
-      await logger.log('LOGIN_FAILED', `Compte désactivé: ${email}`);
+      await logger.log('LOGIN_FAILED', `Compte désactivé: ${email}`, utilisateur.id);
 
       return NextResponse.json(
         { erreur: 'Compte désactivé' },
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Si le mot de passe ne correspond pas
     if (!motDePasseValide) {
       // Log l'tentative échouée
-      await logger.log('LOGIN_FAILED', `Mauvais mot de passe: ${email}`);
+      await logger.log('LOGIN_FAILED', `Mauvais mot de passe: ${email}`, utilisateur.id);
 
       return NextResponse.json(
         { erreur: 'Email ou mot de passe incorrect' },
@@ -102,7 +102,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     });
 
     // Log la connexion réussie
-    await logger.log('LOGIN_SUCCESS', `Connexion réussie: ${email}`);
+    await logger.log('LOGIN_SUCCESS', `Connexion réussie: ${email}`, utilisateur.id);
 
     // Retourne le token et les infos de l'utilisateur au client
     // Le statut 200 indique une réponse réussie

@@ -10,4 +10,5 @@ export type {
   RepartitionDimeFilter,
   RepartitionDimeResponseDTO,
   RepartitionMontants,
+  UpdateRepartitionDimeDTO,
 } from '@/types/dime';
