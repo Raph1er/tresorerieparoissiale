@@ -25,12 +25,12 @@ type TransactionDbPayload = {
     estSupprime: boolean;
     creeLe: Date;
     modifieLe: Date;
-    categorieId: number;
+    categorieId: number | null;
     categorie: {
         id: number;
         nom: string;
         type: TypeTransaction;
-    };
+    } | null;
     utilisateurId: number;
     utilisateur: {
         id: number;
@@ -128,7 +128,7 @@ export class TransactionRepository {
                     : data.dateOperation,
                 modePaiement: data.modePaiement ?? null,
                 pieceJustificative: data.pieceJustificative ?? null,
-                categorieId: data.categorieId,
+                categorieId: data.categorieId ?? null,
                 utilisateurId: utilisateurId,
                 evenementId: data.evenementId ?? null,
                 estSupprime: false,
@@ -273,9 +273,15 @@ export class TransactionRepository {
             updateData.pieceJustificative = data.pieceJustificative || null;
         }
         if (data.categorieId !== undefined) {
-            updateData.categorie = {
-                connect: { id: data.categorieId },
-            };
+            if (data.categorieId === null) {
+                updateData.categorie = {
+                    disconnect: true,
+                };
+            } else {
+                updateData.categorie = {
+                    connect: { id: data.categorieId },
+                };
+            }
         }
         if (data.evenementId !== undefined) {
             if (data.evenementId === null) {

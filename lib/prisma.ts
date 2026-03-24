@@ -44,11 +44,11 @@ const prisma =
         // Configuration optionnelle du logging
         log: [
           // Log les requêtes avec les variables liées
-          'query',
+          // 'query',
           // Log les erreurs
-          'error',
+          'error'
           // Log les avertissements
-          'warn',
+          // 'warn',
         ],
       });
 

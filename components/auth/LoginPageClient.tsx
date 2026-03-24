@@ -14,21 +14,19 @@
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
-import type { CSSProperties, FormEvent } from "react";
+import type { FormEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button, Label, TextInput } from "flowbite-react";
+import Image from "next/image";
 import { getAuthToken, isTokenExpired, setSession } from "@/lib/client-auth";
 import Logo from "@/components/layout/Logo";
 
-// Fond dégradé animé repris du template MatDash.
-const gradientStyle: CSSProperties = {
-  background:
-    "linear-gradient(45deg, rgba(238,119,82,0.2), rgba(231,60,126,0.2), rgba(35,166,213,0.2), rgba(35,213,171,0.2))",
-  backgroundSize: "400% 400%",
-  animation: "gradient 15s ease infinite",
-  height: "100vh",
-};
+const messageBlocks = [
+  "Gérez la trésorerie de votre paroisse en toute simplicité.",
+  "Suivez le solde de la paroisse, les dernières opérations et les priorités de gestion depuis un seul écran.",
+  "Contrôle des entrées, sorties et justificatifs avec pagination.",
+];
 
 export default function LoginPageClient() {
   const router = useRouter();
@@ -45,6 +43,9 @@ export default function LoginPageClient() {
   const [chargement, setChargement] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
   const [messageInfo, setMessageInfo] = useState<string | null>(null);
+  const [animatedBlocks, setAnimatedBlocks] = useState<string[]>([]);
+  const [activeBlockIndex, setActiveBlockIndex] = useState(0);
+  const [typedText, setTypedText] = useState("");
 
   useEffect(() => {
     const token = getAuthToken();
@@ -59,6 +60,29 @@ export default function LoginPageClient() {
       setMessageInfo("Déconnexion réussie.");
     }
   }, [nextPath, router, searchParams]);
+
+  useEffect(() => {
+    if (activeBlockIndex >= messageBlocks.length) {
+      return;
+    }
+
+    const currentMessage = messageBlocks[activeBlockIndex];
+    if (typedText.length < currentMessage.length) {
+      const timeoutId = window.setTimeout(() => {
+        setTypedText(currentMessage.slice(0, typedText.length + 1));
+      }, 26);
+
+      return () => window.clearTimeout(timeoutId);
+    }
+
+    const pauseId = window.setTimeout(() => {
+      setAnimatedBlocks((current) => [...current, currentMessage]);
+      setTypedText("");
+      setActiveBlockIndex((current) => current + 1);
+    }, 550);
+
+    return () => window.clearTimeout(pauseId);
+  }, [activeBlockIndex, typedText]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -87,15 +111,39 @@ export default function LoginPageClient() {
   }
 
   return (
-    <div style={gradientStyle} className="relative overflow-hidden h-screen">
-      <div className="flex h-full justify-center items-center px-4">
-        <div className="rounded-xl shadow-md bg-white dark:bg-darkgray p-6 w-full md:w-[400px] border-none">
-          <div className="flex flex-col gap-2 w-full">
-            <div className="mx-auto mb-2">
+    <div className="relative min-h-screen overflow-hidden">
+      <Image
+        src="/Christ2.jpg"
+        alt="Illustration de fond"
+        fill
+        priority
+        className="object-cover"
+      />
+
+      <div className="absolute inset-0 bg-black/60" />
+
+      <div className="relative z-10 flex min-h-screen items-center justify-center px-4 py-8">
+        <div className="w-full max-w-[460px] rounded-2xl border border-white/20 bg-white/92 p-6 shadow-2xl backdrop-blur-sm md:p-8">
+          <div className="flex flex-col gap-3 w-full">
+            <div className="mx-auto mb-1">
               <Logo />
             </div>
 
-            <p className="text-sm text-center text-bodytext">
+            <div className="rounded-xl bg-slate-900 px-4 py-3 text-sm leading-relaxed text-slate-100 min-h-[148px]">
+              {animatedBlocks.map((block, index) => (
+                <p key={`block-${index}`} className="mb-2">
+                  {block}
+                </p>
+              ))}
+              {activeBlockIndex < messageBlocks.length ? (
+                <p>
+                  {typedText}
+                  <span className="inline-block w-[7px] animate-pulse">|</span>
+                </p>
+              ) : null}
+            </div>
+
+            <p className="text-sm text-center text-bodytext font-medium">
               Connectez-vous à votre espace financier
             </p>
 
@@ -105,7 +153,7 @@ export default function LoginPageClient() {
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="mt-2">
+            <form onSubmit={handleSubmit} className="mt-1">
               <div className="mb-4">
                 <div className="mb-2 block">
                   <Label htmlFor="email" value="Adresse email" />
@@ -150,7 +198,7 @@ export default function LoginPageClient() {
                 disabled={chargement}
                 className="w-full bg-primary text-white rounded-xl mt-2"
               >
-                {chargement ? "Connexion en cours…" : "Se connecter"}
+                {chargement ? "Connexion en cours..." : "Se connecter"}
               </Button>
             </form>
           </div>

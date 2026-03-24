@@ -12,15 +12,23 @@
  */
 
 import Link from "next/link";
+import Image from "next/image";
 
 const Logo = () => {
   return (
     // Le logo est un lien vers le dashboard
     <Link href="/dashboard" className="flex items-center gap-2 no-underline">
 
-      {/* Emblème circulaire avec les initiales */}
-      <span className="h-9 w-9 rounded-full bg-primary flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-        TP
+      {/* Emblème circulaire avec le logo de la paroisse */}
+      <span className="h-10 w-10 rounded-full bg-white border border-border dark:border-darkborder flex items-center justify-center overflow-hidden flex-shrink-0">
+        <Image
+          src="/logo ECC.webp"
+          alt="Logo de la paroisse"
+          width={36}
+          height={36}
+          className="h-9 w-9 object-contain"
+          priority
+        />
       </span>
 
       {/* Nom de l'application sur deux lignes */}

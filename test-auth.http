@@ -21,9 +21,9 @@
 
 @BASE_URL = http://localhost:3001
 @EMAIL_TEST = tresorier.test@eglise.com
-@PASSWORD = SecurePassword123!
-@PASSWORD_CONFIRM = SecurePassword123!
-@NOM_TEST = Jean Paul Trésorier
+@PASSWORD = Raph123456789!
+@PASSWORD_CONFIRM = Raph123456789!
+@NOM_TEST = AVINOU Samuel
 
 ###############################################################################
 # 1. TEST D'INSCRIPTION - CRÉER UN NOUVEL UTILISATEUR

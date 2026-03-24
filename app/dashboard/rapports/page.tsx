@@ -33,7 +33,7 @@ interface TransactionRow {
     id: number;
     nom: string;
     type: "ENTREE" | "SORTIE";
-  };
+  } | null;
   evenement: {
     id: number;
     nom: string;
@@ -92,6 +92,23 @@ function formatDate(value: string): string {
   });
 }
 
+function formatDateOnly(value: string): string {
+  return parseDateForDisplay(value).toLocaleDateString("fr-FR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}
+
+function formatMoneyForPdf(value: number): string {
+  const rounded = Math.round(value);
+  const sign = rounded < 0 ? "-" : "";
+  const abs = Math.abs(rounded)
+    .toString()
+    .replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  return `${sign}${abs} XOF`;
+}
+
 function isoFromDateInput(value: string, endOfDay = false): string {
   const suffix = endOfDay ? "T23:59:59.999" : "T00:00:00.000";
   return `${value}${suffix}`;
@@ -113,6 +130,184 @@ export default function DashboardRapportsPage() {
   const [categories, setCategories] = useState<OptionItem[]>([]);
   const [evenements, setEvenements] = useState<OptionItem[]>([]);
   const [rows, setRows] = useState<TransactionRow[]>([]);
+
+  async function exporterPdfRapport() {
+    if (!hasGenerated || rows.length === 0) {
+      return;
+    }
+
+    try {
+      const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+        import("jspdf"),
+        import("jspdf-autotable"),
+      ]);
+
+      const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+
+      const headerLines = [
+        "EGLISE DU CHRISTIANISME CELESTE",
+        "SAINT SIEGE DE PORTO-NOVO",
+        "DIOCESE DU BENIN",
+        "REGION MONO",
+        "SOUS-REGION LOKOSSA",
+        "PAROISSE SAINT MICHEL DE LOKOSSA CENTRE",
+        "BP : 202 LOKOSSA",
+      ];
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      let cursorY = 12;
+      for (const line of headerLines) {
+        doc.text(line, pageWidth / 2, cursorY, { align: "center" });
+        cursorY += 5;
+      }
+
+      cursorY += 2;
+      doc.setDrawColor(40, 40, 40);
+      doc.setLineWidth(0.5);
+      doc.line(12, cursorY, pageWidth - 12, cursorY);
+
+      cursorY += 8;
+      doc.setFontSize(14);
+      doc.text("RAPPORT DES TRANSACTIONS", pageWidth / 2, cursorY, { align: "center" });
+
+      cursorY += 7;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.text(
+        `Période: ${formatDateOnly(isoFromDateInput(dateDebut))} au ${formatDateOnly(isoFromDateInput(dateFin, true))}`,
+        12,
+        cursorY
+      );
+      doc.text(
+        `Généré le: ${new Date().toLocaleString("fr-FR")}`,
+        pageWidth - 12,
+        cursorY,
+        { align: "right" }
+      );
+
+      cursorY += 6;
+      const filtres = [
+        `Type: ${typeFilter === "ALL" ? "Tous" : typeFilter}`,
+        `Catégorie: ${categorieId ? categories.find((c) => String(c.id) === categorieId)?.nom ?? "-" : "Toutes"}`,
+        `Évènement: ${evenementId ? evenements.find((e) => String(e.id) === evenementId)?.nom ?? "-" : "Tous"}`,
+        `Recherche: ${search.trim() ? search.trim() : "-"}`,
+      ];
+      doc.text(filtres.join(" | "), 12, cursorY);
+
+      const tableBody = rows.map((row, index) => [
+        String(index + 1),
+        formatDate(row.dateOperation),
+        row.type,
+        row.description || "Sans description",
+        row.categorie?.nom || "-",
+        row.evenement?.nom || "-",
+        row.modePaiement || "-",
+        formatMoneyForPdf(row.montant),
+      ]);
+
+      autoTable(doc, {
+        startY: cursorY + 4,
+        head: [["#", "Date", "Type", "Description", "Catégorie", "Évènement", "Mode paiement", "Montant"]],
+        body: tableBody,
+        margin: {
+          left: 8,
+          right: 8,
+          bottom: 18,
+        },
+        styles: {
+          fontSize: 8,
+          lineColor: [150, 150, 150],
+          lineWidth: 0.2,
+          cellPadding: 1.8,
+          valign: "middle",
+          overflow: "linebreak",
+        },
+        headStyles: {
+          fillColor: [30, 64, 175],
+          textColor: 255,
+          fontStyle: "bold",
+          halign: "center",
+        },
+        bodyStyles: {
+          textColor: [30, 30, 30],
+        },
+        alternateRowStyles: {
+          fillColor: [248, 250, 252],
+        },
+        columnStyles: {
+          0: { cellWidth: 10, halign: "center" },
+          1: { cellWidth: 34 },
+          2: { cellWidth: 18, halign: "center" },
+          3: { cellWidth: 86 },
+          4: { cellWidth: 38 },
+          5: { cellWidth: 38 },
+          6: { cellWidth: 30 },
+          7: { cellWidth: 27, halign: "right" },
+        },
+        didParseCell: (data) => {
+          if (data.section === "body" && data.column.index === 2) {
+            const value = String(data.cell.raw);
+            if (value === "ENTREE") {
+              data.cell.styles.textColor = [22, 163, 74];
+            }
+            if (value === "SORTIE") {
+              data.cell.styles.textColor = [220, 38, 38];
+            }
+          }
+          if (data.section === "body" && data.column.index === 7) {
+            data.cell.styles.halign = "right";
+          }
+        },
+      });
+
+      const autoTableState = doc as unknown as { lastAutoTable?: { finalY: number } };
+      doc.setPage(doc.getNumberOfPages());
+      let finalY = autoTableState.lastAutoTable?.finalY ?? 170;
+      const espaceNecessaire = 30;
+      if (finalY + espaceNecessaire > pageHeight - 10) {
+        doc.addPage();
+        finalY = 20;
+      }
+
+      const totalEntreesTexte = formatMoneyForPdf(totals.totalEntrees);
+      const totalSortiesTexte = formatMoneyForPdf(totals.totalSorties);
+      const soldeTexte = formatMoneyForPdf(totals.solde);
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.setTextColor(20, 20, 20);
+      doc.text(`Total Entrées: ${totalEntreesTexte}`, 12, finalY + 8);
+      doc.text(`Total Sorties: ${totalSortiesTexte}`, 110, finalY + 8);
+      doc.text(`Solde: ${soldeTexte}`, 208, finalY + 8);
+
+      const visaY = pageHeight - 14;
+      const lineStart = pageWidth - 100;
+      const lineEnd = pageWidth - 20;
+      doc.setDrawColor(70, 70, 70);
+      doc.setLineWidth(0.3);
+      doc.line(lineStart, visaY - 6, lineEnd, visaY - 6);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.text("Visa du Chargé Paroissial", (lineStart + lineEnd) / 2, visaY, { align: "center" });
+
+      const nombrePagesFinal = doc.getNumberOfPages();
+      for (let page = 1; page <= nombrePagesFinal; page += 1) {
+        doc.setPage(page);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor(80, 80, 80);
+        doc.text(`Page ${page} / ${nombrePagesFinal}`, pageWidth - 8, pageHeight - 6, { align: "right" });
+      }
+
+      const fileName = `rapport-transactions-${dateDebut}-au-${dateFin}.pdf`;
+      doc.save(fileName);
+    } catch {
+      setError("Export PDF impossible pour le moment.");
+    }
+  }
 
   useEffect(() => {
     fetchWithAuth<{ data: Array<{ id: number; nom: string }> }>(
@@ -353,11 +548,12 @@ export default function DashboardRapportsPage() {
             <button
               type="button"
               disabled={!hasGenerated || rows.length === 0}
-              className="inline-flex items-center gap-2 rounded-xl border border-border dark:border-darkborder px-4 py-2 text-sm text-link dark:text-white disabled:opacity-50"
-              title="Export PDF: prochaine étape"
+              onClick={exporterPdfRapport}
+              className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              title="Exporter le rapport en PDF"
             >
               <FileText size={14} />
-              Exporter PDF (étape suivante)
+              Exporter PDF
             </button>
           </div>
         </form>
@@ -380,43 +576,42 @@ export default function DashboardRapportsPage() {
               <table className="min-w-full text-sm">
                 <thead className="bg-lightgray/60 dark:bg-dark">
                   <tr className="text-left text-bodytext border-b border-border dark:border-darkborder">
-                    <th className="py-3 px-3 font-semibold">Date</th>
-                    <th className="py-3 px-3 font-semibold">Type</th>
-                    <th className="py-3 px-3 font-semibold">Description</th>
-                    <th className="py-3 px-3 font-semibold">Catégorie</th>
-                    <th className="py-3 px-3 font-semibold">Évènement</th>
+                    <th className="py-3 px-3 font-semibold border-r border-border dark:border-darkborder">Date</th>
+                    <th className="py-3 px-3 font-semibold border-r border-border dark:border-darkborder">Type</th>
+                    <th className="py-3 px-3 font-semibold border-r border-border dark:border-darkborder">Description</th>
+                    <th className="py-3 px-3 font-semibold border-r border-border dark:border-darkborder">Catégorie</th>
+                    <th className="py-3 px-3 font-semibold border-r border-border dark:border-darkborder">Évènement</th>
                     {/* <th className="py-3 px-3 font-semibold">Utilisateur</th> */}
-                    <th className="py-3 px-3 font-semibold">Mode paiement</th>
+                    <th className="py-3 px-3 font-semibold border-r border-border dark:border-darkborder">Mode paiement</th>
                     <th className="py-3 px-3 text-right font-semibold">Montant</th>
                   </tr>
                 </thead>
                 <tbody>
                   {rows.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="py-8 text-center text-bodytext">
+                      <td colSpan={8} className="py-8 text-center text-bodytext border-r border-border/60 dark:border-darkborder/60">
                         Aucune transaction pour ces filtres.
                       </td>
                     </tr>
                   ) : (
                     rows.map((row) => (
                       <tr key={row.id} className="border-b border-border/60 dark:border-darkborder/60">
-                        <td className="py-3 px-3 text-bodytext">{formatDate(row.dateOperation)}</td>
-                        <td className="py-3 px-3">
+                        <td className="py-3 px-3 text-bodytext border-r border-border/60 dark:border-darkborder/60">{formatDate(row.dateOperation)}</td>
+                        <td className="py-3 px-3 border-r border-border/60 dark:border-darkborder/60">
                           <span
-                            className={`inline-flex rounded-lg px-2 py-1 text-xs font-semibold ${
-                              row.type === "ENTREE" ? "bg-lightsuccess text-success" : "bg-lighterror text-error"
-                            }`}
+                            className={`inline-flex rounded-lg px-2 py-1 text-xs font-semibold ${row.type === "ENTREE" ? "bg-lightsuccess text-success" : "bg-lighterror text-error"
+                              }`}
                           >
                             {row.type}
                           </span>
                         </td>
-                        <td className="py-3 px-3 text-dark dark:text-white max-w-[260px] truncate" title={row.description || "Sans description"}>
+                        <td className="py-3 px-3 text-dark dark:text-white max-w-[260px] truncate border-r border-border/60 dark:border-darkborder/60" title={row.description || "Sans description"}>
                           {row.description || "Sans description"}
                         </td>
-                        <td className="py-3 px-3 text-bodytext">{row.categorie?.nom || "-"}</td>
-                        <td className="py-3 px-3 text-bodytext">{row.evenement?.nom || "-"}</td>
+                        <td className="py-3 px-3 text-bodytext border-r border-border/60 dark:border-darkborder/60">{row.categorie?.nom || "-"}</td>
+                        <td className="py-3 px-3 text-bodytext border-r border-border/60 dark:border-darkborder/60">{row.evenement?.nom || "-"}</td>
                         {/* <td className="py-3 px-3 text-bodytext">{row.utilisateur?.nom || "-"}</td> */}
-                        <td className="py-3 px-3 text-bodytext">{row.modePaiement || "-"}</td>
+                        <td className="py-3 px-3 text-bodytext border-r border-border/60 dark:border-darkborder/60">{row.modePaiement || "-"}</td>
                         <td className={`py-3 px-3 text-right font-semibold ${row.type === "ENTREE" ? "text-success" : "text-error"}`}>
                           {row.type === "ENTREE" ? "+" : "-"} {formatMoney(row.montant)}
                         </td>

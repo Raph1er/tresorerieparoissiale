@@ -35,29 +35,46 @@ export class TransactionService {
     data: CreateTransactionDTO,
     utilisateurId: number
   ): Promise<TransactionResponseDTO> {
-    // Vérifier que la catégorie existe et est active
-    const categorie = await prisma.categorie.findUnique({
-      where: { id: data.categorieId },
-      select: { id: true, nom: true, type: true, actif: true },
-    });
+    const categorieFournie = data.categorieId !== undefined;
+    const evenementFourni = data.evenementId !== undefined;
 
-    if (!categorie) {
-      throw new Error(`Catégorie avec l'ID ${data.categorieId} introuvable`);
+    if (categorieFournie && evenementFourni) {
+      throw new Error('Veuillez renseigner une catégorie ou un évènement, pas les deux.');
     }
 
-    if (!categorie.actif) {
-      throw new Error(`La catégorie "${categorie.nom}" est désactivée`);
+    if (!categorieFournie && !evenementFourni) {
+      throw new Error('Veuillez renseigner une catégorie ou un évènement.');
     }
 
-    // Vérifier que le type de transaction correspond au type de catégorie
-    if (data.type !== categorie.type) {
-      throw new Error(
-        `Le type de transaction "${data.type}" ne correspond pas au type de catégorie "${categorie.type}"`
-      );
+    let categorieNomPourLog = 'Aucune';
+
+    // Vérifier que la catégorie existe et est active si fournie.
+    if (data.categorieId !== undefined) {
+      const categorie = await prisma.categorie.findUnique({
+        where: { id: data.categorieId },
+        select: { id: true, nom: true, type: true, actif: true },
+      });
+
+      if (!categorie) {
+        throw new Error(`Catégorie avec l'ID ${data.categorieId} introuvable`);
+      }
+
+      if (!categorie.actif) {
+        throw new Error(`La catégorie "${categorie.nom}" est désactivée`);
+      }
+
+      // Vérifier que le type de transaction correspond au type de catégorie
+      if (data.type !== categorie.type) {
+        throw new Error(
+          `Le type de transaction "${data.type}" ne correspond pas au type de catégorie "${categorie.type}"`
+        );
+      }
+
+      categorieNomPourLog = categorie.nom;
     }
 
     // Vérifier que l'évènement existe et est actif si fourni
-    if (data.evenementId) {
+    if (data.evenementId !== undefined) {
       const evenement = await prisma.evenement.findUnique({
         where: { id: data.evenementId },
         select: { id: true, nom: true, actif: true },
@@ -78,7 +95,7 @@ export class TransactionService {
     // Logger l'action
     await logger.log(
       'TRANSACTION_CREATED',
-      `Transaction ${transaction.type} de ${transaction.montant} créée (catégorie: ${categorie.nom})`,
+      `Transaction ${transaction.type} de ${transaction.montant} créée (catégorie: ${categorieNomPourLog})`,
       utilisateurId
     );
 
@@ -118,45 +135,56 @@ export class TransactionService {
     }
 
     // Si on change la catégorie, vérifier qu'elle existe et est active
-    if (data.categorieId && data.categorieId !== transactionExistante.categorieId) {
-      const categorie = await prisma.categorie.findUnique({
-        where: { id: data.categorieId },
-        select: { id: true, nom: true, type: true, actif: true },
-      });
+    if (data.categorieId !== undefined && data.categorieId !== transactionExistante.categorieId) {
+      if (data.categorieId !== null) {
+        const categorie = await prisma.categorie.findUnique({
+          where: { id: data.categorieId },
+          select: { id: true, nom: true, type: true, actif: true },
+        });
 
-      if (!categorie) {
-        throw new Error(`Catégorie avec l'ID ${data.categorieId} introuvable`);
-      }
+        if (!categorie) {
+          throw new Error(`Catégorie avec l'ID ${data.categorieId} introuvable`);
+        }
 
-      if (!categorie.actif) {
-        throw new Error(`La catégorie "${categorie.nom}" est désactivée`);
-      }
+        if (!categorie.actif) {
+          throw new Error(`La catégorie "${categorie.nom}" est désactivée`);
+        }
 
-      // Vérifier la cohérence du type si on change aussi le type de transaction
-      const nouveauType = data.type ?? transactionExistante.type;
-      if (nouveauType !== categorie.type) {
-        throw new Error(
-          `Le type de transaction "${nouveauType}" ne correspond pas au type de catégorie "${categorie.type}"`
-        );
+        // Vérifier la cohérence du type si on change aussi le type de transaction
+        const nouveauType = data.type ?? transactionExistante.type;
+        if (nouveauType !== categorie.type) {
+          throw new Error(
+            `Le type de transaction "${nouveauType}" ne correspond pas au type de catégorie "${categorie.type}"`
+          );
+        }
       }
     }
 
-    // Si on change le type sans changer la catégorie, vérifier la cohérence
-    if (data.type && !data.categorieId && data.type !== transactionExistante.type) {
-      const categorieActuelle = await prisma.categorie.findUnique({
-        where: { id: transactionExistante.categorieId },
-        select: { type: true },
-      });
+    // Si on change le type, vérifier la cohérence avec la catégorie cible quand elle existe.
+    if (data.type && data.type !== transactionExistante.type) {
+      const categorieCibleId =
+        data.categorieId !== undefined ? data.categorieId : transactionExistante.categorieId;
 
-      if (categorieActuelle && data.type !== categorieActuelle.type) {
-        throw new Error(
-          `Le nouveau type "${data.type}" ne correspond pas au type de la catégorie actuelle "${categorieActuelle.type}"`
-        );
+      if (categorieCibleId !== null) {
+        const categorieCible = await prisma.categorie.findUnique({
+          where: { id: categorieCibleId },
+          select: { type: true },
+        });
+
+        if (categorieCible && data.type !== categorieCible.type) {
+          throw new Error(
+            `Le nouveau type "${data.type}" ne correspond pas au type de la catégorie actuelle "${categorieCible.type}"`
+          );
+        }
       }
     }
 
     // Si on change l'évènement, vérifier qu'il existe et est actif
-    if (data.evenementId && data.evenementId !== transactionExistante.evenementId) {
+    if (
+      data.evenementId !== undefined &&
+      data.evenementId !== null &&
+      data.evenementId !== transactionExistante.evenementId
+    ) {
       const evenement = await prisma.evenement.findUnique({
         where: { id: data.evenementId },
         select: { id: true, nom: true, actif: true },
@@ -168,6 +196,22 @@ export class TransactionService {
 
       if (!evenement.actif) {
         throw new Error(`L'évènement "${evenement.nom}" est désactivé`);
+      }
+    }
+
+    const referenceModifiee = data.categorieId !== undefined || data.evenementId !== undefined;
+    if (referenceModifiee) {
+      const categorieFinale =
+        data.categorieId !== undefined ? data.categorieId : transactionExistante.categorieId;
+      const evenementFinal =
+        data.evenementId !== undefined ? data.evenementId : transactionExistante.evenementId;
+
+      if (categorieFinale !== null && evenementFinal !== null) {
+        throw new Error('Veuillez renseigner une catégorie ou un évènement, pas les deux.');
+      }
+
+      if (categorieFinale === null && evenementFinal === null) {
+        throw new Error('Veuillez renseigner une catégorie ou un évènement.');
       }
     }
 

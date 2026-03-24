@@ -15,7 +15,7 @@ export interface CreateTransactionDTO {
   dateOperation: Date | string;
   modePaiement?: string;
   pieceJustificative?: string; // Chemin du fichier uploadé
-  categorieId: number;
+  categorieId?: number;
   evenementId?: number;
 }
 
@@ -30,7 +30,7 @@ export interface UpdateTransactionDTO {
   dateOperation?: Date | string;
   modePaiement?: string;
   pieceJustificative?: string;
-  categorieId?: number;
+  categorieId?: number | null;
   evenementId?: number | null;
   estSupprime?: boolean;
 }
@@ -52,12 +52,12 @@ export interface TransactionResponseDTO {
   modifieLe: Date | null;
   
   // Relations
-  categorieId: number;
+  categorieId: number | null;
   categorie: {
     id: number;
     nom: string;
     type: TypeTransaction;
-  };
+  } | null;
   
   utilisateurId: number;
   utilisateur: {

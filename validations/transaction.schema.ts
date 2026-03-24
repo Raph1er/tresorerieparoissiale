@@ -143,13 +143,35 @@ export function validerCreateTransactionDTO(
     };
   }
 
-  // Catégorie ID (requis)
-  const categorieId = parserEntier(data.categorieId);
-  if (!categorieId) {
+  const categorieFournie =
+    data.categorieId !== undefined && data.categorieId !== null && data.categorieId !== '';
+  const evenementFourni =
+    data.evenementId !== undefined && data.evenementId !== null && data.evenementId !== '';
+
+  if (!categorieFournie && !evenementFourni) {
     return {
       success: false,
-      error: 'Le champ "categorieId" est requis et doit être un entier positif',
+      error: 'Vous devez renseigner soit "categorieId" soit "evenementId"',
     };
+  }
+
+  if (categorieFournie && evenementFourni) {
+    return {
+      success: false,
+      error: 'Veuillez renseigner un seul champ: "categorieId" ou "evenementId"',
+    };
+  }
+
+  let categorieId: number | undefined;
+  if (categorieFournie) {
+    const parsedCategorieId = parserEntier(data.categorieId);
+    if (!parsedCategorieId) {
+      return {
+        success: false,
+        error: 'Le champ "categorieId" doit être un entier positif',
+      };
+    }
+    categorieId = parsedCategorieId;
   }
 
   // Description (optionnel)
@@ -181,12 +203,12 @@ export function validerCreateTransactionDTO(
 
   // Évènement ID (optionnel)
   let evenementId: number | undefined;
-  if (data.evenementId !== undefined && data.evenementId !== null) {
+  if (evenementFourni) {
     const parsedEvenementId = parserEntier(data.evenementId);
     if (!parsedEvenementId) {
       return {
         success: false,
-        error: 'Le champ "evenementId" doit être un entier positif ou null',
+        error: 'Le champ "evenementId" doit être un entier positif',
       };
     }
     evenementId = parsedEvenementId;
@@ -304,14 +326,18 @@ export function validerUpdateTransactionDTO(
 
   // Catégorie ID (optionnel)
   if (data.categorieId !== undefined) {
-    const categorieId = parserEntier(data.categorieId);
-    if (!categorieId) {
-      return {
-        success: false,
-        error: 'Le champ "categorieId" doit être un entier positif',
-      };
+    if (data.categorieId === null) {
+      updates.categorieId = null;
+    } else {
+      const categorieId = parserEntier(data.categorieId);
+      if (!categorieId) {
+        return {
+          success: false,
+          error: 'Le champ "categorieId" doit être un entier positif ou null',
+        };
+      }
+      updates.categorieId = categorieId;
     }
-    updates.categorieId = categorieId;
   }
 
   // Évènement ID (optionnel)
@@ -348,6 +374,18 @@ export function validerUpdateTransactionDTO(
       success: false,
       error: 'Au moins un champ doit être fourni pour la mise à jour',
     };
+  }
+
+  if (updates.categorieId !== undefined && updates.evenementId !== undefined) {
+    const categorieRenseignee = updates.categorieId !== null;
+    const evenementRenseigne = updates.evenementId !== null;
+
+    if (categorieRenseignee && evenementRenseigne) {
+      return {
+        success: false,
+        error: 'Veuillez renseigner un seul champ: "categorieId" ou "evenementId"',
+      };
+    }
   }
 
   return { success: true, data: updates };

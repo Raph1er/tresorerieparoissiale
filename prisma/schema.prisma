@@ -117,8 +117,8 @@ model Transaction {
   // Relations
   //////////////////////////////////////////////////////
 
-  categorieId     Int
-  categorie       Categorie @relation(fields: [categorieId], references: [id])
+  categorieId     Int?
+  categorie       Categorie? @relation(fields: [categorieId], references: [id])
 
   utilisateurId   Int
   utilisateur     Utilisateur @relation(fields: [utilisateurId], references: [id])

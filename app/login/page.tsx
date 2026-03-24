@@ -14,13 +14,19 @@ import { Suspense } from "react";
 import LoginPageClient from "@/components/auth/LoginPageClient";
 
 function LoginFallback() {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-lightgray px-4">
-      <div className="rounded-xl bg-white shadow-md px-6 py-5 text-sm text-bodytext">
-        Chargement de l'espace de connexion...
+    return (
+      <div className="fixed inset-0 flex items-center justify-center bg-white/80 backdrop-blur-sm">
+        <div className="flex flex-col items-center gap-4">
+          <div className="relative">
+            {/* Cercle extérieur */}
+            <div className="w-16 h-16 rounded-full border-4 border-gray-200"></div>
+            {/* Cercle animé */}
+            <div className="absolute top-0 left-0 w-16 h-16 rounded-full border-4 border-blue-600 border-t-transparent animate-spin"></div>
+          </div>
+          <p className="text-gray-600 font-medium text-sm">Chargement...</p>
+        </div>
       </div>
-    </div>
-  );
+    );
 }
 
 export default function LoginPage() {

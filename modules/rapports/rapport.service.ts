@@ -22,7 +22,7 @@ interface TransactionRapportRow {
     id: number;
     nom: string;
     type: TypeTransaction;
-  };
+  } | null;
   evenement: {
     id: number;
     nom: string;
@@ -107,18 +107,20 @@ export class RapportService {
         totalSorties += transaction.montant;
       }
 
-      const categorieExistante = parCategorieMap.get(transaction.categorie.id);
-      if (!categorieExistante) {
-        parCategorieMap.set(transaction.categorie.id, {
-          categorieId: transaction.categorie.id,
-          categorieNom: transaction.categorie.nom,
-          type: transaction.categorie.type,
-          total: transaction.montant,
-          nombreTransactions: 1,
-        });
-      } else {
-        categorieExistante.total += transaction.montant;
-        categorieExistante.nombreTransactions += 1;
+      if (transaction.categorie) {
+        const categorieExistante = parCategorieMap.get(transaction.categorie.id);
+        if (!categorieExistante) {
+          parCategorieMap.set(transaction.categorie.id, {
+            categorieId: transaction.categorie.id,
+            categorieNom: transaction.categorie.nom,
+            type: transaction.categorie.type,
+            total: transaction.montant,
+            nombreTransactions: 1,
+          });
+        } else {
+          categorieExistante.total += transaction.montant;
+          categorieExistante.nombreTransactions += 1;
+        }
       }
 
       if (transaction.evenement) {

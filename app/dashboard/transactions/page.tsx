@@ -32,7 +32,7 @@ interface TransactionApiItem {
     id: number;
     nom: string;
     type: TxType;
-  };
+  } | null;
   utilisateur: {
     id: number;
     nom: string;
@@ -61,7 +61,7 @@ interface TransactionListItem {
   description: string;
   dateOperation: string;
   modePaiement: string;
-  categorieId: number;
+  categorieId: number | null;
   categorieNom: string;
   utilisateurNom: string;
   evenementId: number | null;
@@ -85,8 +85,33 @@ interface TransactionFormState {
   description: string;
   dateOperation: string;
   modePaiement: string;
-  categorieId: string;
-  evenementId: string;
+  referenceSelection: string;
+}
+
+function parseReferenceSelection(value: string):
+  | { kind: "CATEGORIE"; id: number }
+  | { kind: "EVENEMENT"; id: number }
+  | null {
+  if (!value) {
+    return null;
+  }
+
+  const [kind, rawId] = value.split(":");
+  const id = Number(rawId);
+
+  if (!Number.isInteger(id) || id <= 0) {
+    return null;
+  }
+
+  if (kind === "CATEGORIE") {
+    return { kind, id };
+  }
+
+  if (kind === "EVENEMENT") {
+    return { kind, id };
+  }
+
+  return null;
 }
 
 function formatMoney(value: number): string {
@@ -163,8 +188,7 @@ export default function DashboardTransactionsPage() {
     description: "",
     dateOperation: now,
     modePaiement: "",
-    categorieId: "",
-    evenementId: "",
+    referenceSelection: "",
   });
 
   async function chargerTransactions(): Promise<void> {
@@ -193,7 +217,7 @@ export default function DashboardTransactionsPage() {
         description: tx.description || "Sans description",
         dateOperation: tx.dateOperation,
         modePaiement: tx.modePaiement || "Non précisé",
-        categorieId: tx.categorie?.id,
+        categorieId: tx.categorie?.id ?? null,
         categorieNom: tx.categorie?.nom || "Sans catégorie",
         utilisateurNom: tx.utilisateur?.nom || "Inconnu",
         evenementId: tx.evenement?.id || null,
@@ -275,8 +299,7 @@ export default function DashboardTransactionsPage() {
       description: "",
       dateOperation: now,
       modePaiement: "",
-      categorieId: "",
-      evenementId: "",
+      referenceSelection: "",
     });
     setError(null);
     setSuccessMessage(null);
@@ -291,8 +314,11 @@ export default function DashboardTransactionsPage() {
       description: item.description === "Sans description" ? "" : item.description,
       dateOperation: toDateTimeLocalInputValue(item.dateOperation),
       modePaiement: item.modePaiement === "Non précisé" ? "" : item.modePaiement,
-      categorieId: String(item.categorieId),
-      evenementId: item.evenementId ? String(item.evenementId) : "",
+      referenceSelection: item.categorieId
+        ? `CATEGORIE:${item.categorieId}`
+        : item.evenementId
+          ? `EVENEMENT:${item.evenementId}`
+          : "",
     });
     setError(null);
     setSuccessMessage(null);
@@ -312,14 +338,30 @@ export default function DashboardTransactionsPage() {
         description?: string;
         dateOperation: string;
         modePaiement?: string;
-        categorieId: number;
+        categorieId?: number | null;
         evenementId?: number | null;
       } = {
         type: form.type,
         montant: Number(form.montant),
         dateOperation: form.dateOperation,
-        categorieId: Number(form.categorieId),
       };
+
+      const reference = parseReferenceSelection(form.referenceSelection);
+      if (!reference) {
+        throw new Error("Veuillez sélectionner une catégorie ou un évènement.");
+      }
+
+      if (reference.kind === "CATEGORIE") {
+        payload.categorieId = reference.id;
+        if (editingTransactionId) {
+          payload.evenementId = null;
+        }
+      } else {
+        payload.evenementId = reference.id;
+        if (editingTransactionId) {
+          payload.categorieId = null;
+        }
+      }
 
       if (form.description.trim()) {
         payload.description = form.description.trim();
@@ -327,12 +369,6 @@ export default function DashboardTransactionsPage() {
 
       if (form.modePaiement.trim()) {
         payload.modePaiement = form.modePaiement.trim();
-      }
-
-      if (form.evenementId.trim()) {
-        payload.evenementId = Number(form.evenementId);
-      } else if (editingTransactionId) {
-        payload.evenementId = null;
       }
 
       if (editingTransactionId) {
@@ -609,7 +645,11 @@ export default function DashboardTransactionsPage() {
                   <select
                     value={form.type}
                     onChange={(event) =>
-                      setForm((current) => ({ ...current, type: event.target.value as TxType, categorieId: "" }))
+                      setForm((current) => ({
+                        ...current,
+                        type: event.target.value as TxType,
+                        referenceSelection: "",
+                      }))
                     }
                     className="w-full rounded-xl border border-border dark:border-darkborder bg-transparent px-3 py-2 text-sm text-dark dark:text-white"
                   >
@@ -647,17 +687,34 @@ export default function DashboardTransactionsPage() {
                 </label>
 
                 <label className="text-sm text-bodytext space-y-1 block">
-                  <span>Catégorie</span>
+                  <span>Catégorie / Évènement</span>
                   <select
                     required
-                    value={form.categorieId}
-                    onChange={(event) => setForm((current) => ({ ...current, categorieId: event.target.value }))}
+                    value={form.referenceSelection}
+                    onChange={(event) =>
+                      setForm((current) => ({ ...current, referenceSelection: event.target.value }))
+                    }
                     className="w-full rounded-xl border border-border dark:border-darkborder bg-transparent px-3 py-2 text-sm text-dark dark:text-white"
                   >
                     <option value="">Sélectionner</option>
-                    {categoriesByType.map((item) => (
-                      <option key={item.id} value={item.id}>{item.nom}</option>
-                    ))}
+                    {categoriesByType.length > 0 ? (
+                      <optgroup label="Catégories">
+                        {categoriesByType.map((item) => (
+                          <option key={`cat-${item.id}`} value={`CATEGORIE:${item.id}`}>
+                            {item.nom}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ) : null}
+                    {events.length > 0 ? (
+                      <optgroup label="Évènements">
+                        {events.map((item) => (
+                          <option key={`evt-${item.id}`} value={`EVENEMENT:${item.id}`}>
+                            {item.nom}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ) : null}
                   </select>
                 </label>
               </div>
@@ -672,19 +729,7 @@ export default function DashboardTransactionsPage() {
                   />
                 </label>
 
-                <label className="text-sm text-bodytext space-y-1 block">
-                  <span>Évènement (optionnel)</span>
-                  <select
-                    value={form.evenementId}
-                    onChange={(event) => setForm((current) => ({ ...current, evenementId: event.target.value }))}
-                    className="w-full rounded-xl border border-border dark:border-darkborder bg-transparent px-3 py-2 text-sm text-dark dark:text-white"
-                  >
-                    <option value="">Aucun</option>
-                    {events.map((item) => (
-                      <option key={item.id} value={item.id}>{item.nom}</option>
-                    ))}
-                  </select>
-                </label>
+                <div />
               </div>
 
               <label className="text-sm text-bodytext space-y-1 block">

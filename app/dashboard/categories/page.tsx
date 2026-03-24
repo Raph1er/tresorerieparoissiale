@@ -365,6 +365,14 @@ export default function DashboardCategoriesPage() {
             <ArrowRight size={16} />
             Retour au dashboard
           </Link>
+            <button
+            type="button"
+            onClick={openCreateModal}
+            className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+          >
+            <Plus size={15} />
+           
+          </button>
         </div>
       </header>
 
