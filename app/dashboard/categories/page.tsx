@@ -687,8 +687,8 @@ export default function DashboardCategoriesPage() {
 
                 {formMode === "create" ? (
                   <label className="text-sm text-bodytext space-y-2">
-                    <span>Type de catégorie</span>
-                    <span className="flex items-center gap-2 pt-1">
+                    {/* <span>Type de catégorie</span> */}
+                    {/* <span className="flex items-center gap-2 pt-1">
                       <input
                         type="checkbox"
                         checked={form.estSysteme}
@@ -697,7 +697,7 @@ export default function DashboardCategoriesPage() {
                         }
                       />
                       <span>Catégorie système</span>
-                    </span>
+                    </span> */}
                   </label>
                 ) : (
                   <label className="text-sm text-bodytext space-y-2">

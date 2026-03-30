@@ -295,7 +295,16 @@ export default function DashboardDimesPage() {
         `/api/dimes?${params.toString()}`
       );
 
-      setItems(response.data.map(normalizeDime));
+      const normalizedItems = response.data.map(normalizeDime);
+      const sortedItems = [...normalizedItems].sort((a, b) => {
+        if (sortFilter === "MONTANT") {
+          return b.totalDime - a.totalDime;
+        }
+
+        return new Date(b.transactionDate).getTime() - new Date(a.transactionDate).getTime();
+      });
+
+      setItems(sortedItems);
       setTotal(response.pagination.total);
       setTotalPages(Math.max(1, response.pagination.totalPages));
     } catch (err) {
@@ -384,7 +393,7 @@ export default function DashboardDimesPage() {
       });
 
       setSuccessMessage(
-        editingDimeId ? "Répartition mise à jour avec succès." : "Répartition créée avec succès."
+        editingDimeId ? "Dîmes mise à jour avec succès." : "Nouveau Dîmes ajouté avec succès."
       );
       setIsCreateModalOpen(false);
       setEditingDimeId(null);
@@ -485,11 +494,10 @@ export default function DashboardDimesPage() {
                     setPage(1);
                     setSortFilter(option.value);
                   }}
-                  className={`px-3 py-2 text-sm font-medium ${
-                    sortFilter === option.value
+                  className={`px-3 py-2 text-sm font-medium ${sortFilter === option.value
                       ? "bg-primary text-white"
                       : "bg-transparent text-link dark:text-white"
-                  }`}
+                    }`}
                 >
                   {option.label}
                 </button>

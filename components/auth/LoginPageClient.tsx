@@ -156,7 +156,7 @@ export default function LoginPageClient() {
             <form onSubmit={handleSubmit} className="mt-1">
               <div className="mb-4">
                 <div className="mb-2 block">
-                  <Label htmlFor="email" value="Adresse email" />
+                  <Label htmlFor="email" value="Adresse email" className="text-sky-400" />
                 </div>
                 <TextInput
                   id="email"
@@ -166,13 +166,13 @@ export default function LoginPageClient() {
                   autoComplete="email"
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
-                  className="form-control form-rounded-xl"
+                  className="form-control form-rounded-xl [&_input]:bg-slate-900/85 [&_input]:text-slate-50 [&_input]:placeholder:text-slate-300 [&_input]:caret-slate-50"
                 />
               </div>
 
               <div className="mb-4">
                 <div className="mb-2 block">
-                  <Label htmlFor="motDePasse" value="Mot de passe" />
+                  <Label htmlFor="motDePasse" value="Mot de passe" className="text-sky-400" />
                 </div>
                 <TextInput
                   id="motDePasse"
@@ -182,7 +182,7 @@ export default function LoginPageClient() {
                   autoComplete="current-password"
                   value={motDePasse}
                   onChange={(event) => setMotDePasse(event.target.value)}
-                  className="form-control form-rounded-xl"
+                  className="form-control form-rounded-xl [&_input]:bg-slate-900/85 [&_input]:text-slate-50 [&_input]:placeholder:text-slate-300 [&_input]:caret-slate-50"
                 />
               </div>
 

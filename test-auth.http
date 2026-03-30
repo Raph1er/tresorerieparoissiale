@@ -56,8 +56,8 @@ POST {{BASE_URL}}/api/auth/register
 Content-Type: application/json
 
 {
-  "nom": "Administrateur Principal",
-  "email": "admin@eglise.com",
+  "nom": "Administrateur Principale",
+  "email": "admin@eglisee.com",
   "motDePasse": "AdminSecure2026!",
   "confirmationMotDePasse": "AdminSecure2026!",
   "role": "ADMIN"

@@ -53,12 +53,12 @@ interface TransactionItem {
   description: string | null;
   dateOperation: string;
   categorie?:
-    | string
-    | {
-        id: number;
-        nom: string;
-        type: "ENTREE" | "SORTIE";
-      };
+  | string
+  | {
+    id: number;
+    nom: string;
+    type: "ENTREE" | "SORTIE";
+  };
 }
 
 interface TransactionsResponse {
@@ -74,13 +74,17 @@ interface DashboardTransaction {
   categorieNom: string | null;
 }
 
-function formatMoney(value: number): string {
+const CURRENCY_LABEL = "FCFA";
+
+function formatAmount(value: number): string {
   return new Intl.NumberFormat("fr-FR", {
-    style: "currency",
-    currency: "XOF",
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(value);
+}
+
+function formatMoney(value: number): string {
+  return `${formatAmount(value)} ${CURRENCY_LABEL}`;
 }
 
 function formatDate(dateString: string): string {
@@ -157,21 +161,24 @@ export default function DashboardPage() {
     return [
       {
         label: "Entrées",
-        value: formatMoney(resume.totalEntrees),
+        value: formatAmount(resume.totalEntrees),
+        currency: CURRENCY_LABEL,
         icon: TrendingUp,
         accentClass: "bg-lightsuccess text-success",
-        trend: "+12% vs mois dernier",
+        // trend: "+12% vs mois dernier",
       },
       {
         label: "Sorties",
-        value: formatMoney(resume.totalSorties),
+        value: formatAmount(resume.totalSorties),
+        currency: CURRENCY_LABEL,
         icon: TrendingDown,
         accentClass: "bg-lighterror text-error",
-        trend: "+5% vs mois dernier",
+        // trend: "+5% vs mois dernier",
       },
       {
         label: "Solde",
-        value: formatMoney(resume.solde),
+        value: formatAmount(resume.solde),
+        currency: CURRENCY_LABEL,
         icon: Wallet,
         accentClass: "bg-lightprimary text-primary",
         trend: "Disponible",
@@ -181,7 +188,7 @@ export default function DashboardPage() {
         value: resume.nombreTransactions.toString(),
         icon: CreditCard,
         accentClass: "bg-lightinfo text-info",
-        trend: "Ce mois",
+        // trend: "Ce mois",
       },
     ];
   }, [resume]);
@@ -308,6 +315,11 @@ export default function DashboardPage() {
                 <div>
                   <p className="text-sm text-bodytext">{stat.label}</p>
                   <p className="mt-2 text-2xl font-bold text-dark dark:text-white">{stat.value}</p>
+                  {"currency" in stat ? (
+                    <p className="mt-0.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-bodytext">
+                      {stat.currency}
+                    </p>
+                  ) : null}
                   <p className="mt-2 text-xs font-medium text-bodytext">{stat.trend}</p>
                 </div>
                 <div className={`h-12 w-12 rounded-xl flex items-center justify-center ${stat.accentClass}`}>
@@ -345,9 +357,8 @@ export default function DashboardPage() {
                 >
                   <div className="flex items-center gap-4 min-w-0">
                     <div
-                      className={`h-11 w-11 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                        tx.type === "ENTREE" ? "bg-lightsuccess text-success" : "bg-lighterror text-error"
-                      }`}
+                      className={`h-11 w-11 rounded-xl flex items-center justify-center flex-shrink-0 ${tx.type === "ENTREE" ? "bg-lightsuccess text-success" : "bg-lighterror text-error"
+                        }`}
                     >
                       {tx.type === "ENTREE" ? <ArrowUpRight size={18} /> : <ArrowDownRight size={18} />}
                     </div>
@@ -376,7 +387,7 @@ export default function DashboardPage() {
         </article>
 
         <div className="space-y-6">
-          <article className="rounded-tw bg-white dark:bg-darkgray shadow-md border border-border dark:border-darkborder p-6">
+          {/* <article className="rounded-tw bg-white dark:bg-darkgray shadow-md border border-border dark:border-darkborder p-6">
             <div className="flex items-center justify-between gap-4 mb-6">
               <div>
                 <h2 className="card-title">Priorités</h2>
@@ -414,7 +425,7 @@ export default function DashboardPage() {
                 </div>
               ))}
             </div>
-          </article>
+          </article> */}
 
           <article className="rounded-tw bg-white dark:bg-darkgray shadow-md border border-border dark:border-darkborder p-6">
             <div className="mb-6">

@@ -9,6 +9,7 @@ import {
   FileSpreadsheet,
   FileText,
   Filter,
+  Mail,
   Search,
 } from "lucide-react";
 
@@ -53,6 +54,11 @@ interface TransactionsApiResponse {
     total: number;
     totalPages: number;
   };
+}
+
+interface EnvoyerRapportEmailResponse {
+  message: string;
+  destinataire: string;
 }
 
 interface OptionItem {
@@ -131,181 +137,232 @@ export default function DashboardRapportsPage() {
   const [evenements, setEvenements] = useState<OptionItem[]>([]);
   const [rows, setRows] = useState<TransactionRow[]>([]);
 
+  const [sendingEmail, setSendingEmail] = useState(false);
+  // Message de confirmation visible apres un envoi email reussi
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // Construit le PDF une seule fois pour reutiliser la meme logique:
+  // 1) telechargement local
+  // 2) envoi par email
+  async function construirePdfRapport(): Promise<{ dataUri: string; fileName: string }> {
+    const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+      import("jspdf"),
+      import("jspdf-autotable"),
+    ]);
+
+    const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+
+    const headerLines = [
+      "EGLISE DU CHRISTIANISME CELESTE",
+      "SAINT SIEGE DE PORTO-NOVO",
+      "DIOCESE DU BENIN",
+      "REGION MONO",
+      "SOUS-REGION LOKOSSA",
+      "PAROISSE SAINT MICHEL DE LOKOSSA CENTRE",
+      "BP : 202 LOKOSSA",
+      "Trésorerie Paroissiale",
+    ];
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    let cursorY = 12;
+    for (const line of headerLines) {
+      doc.text(line, pageWidth / 2, cursorY, { align: "center" });
+      cursorY += 5;
+    }
+
+    cursorY += 2;
+    doc.setDrawColor(40, 40, 40);
+    doc.setLineWidth(0.5);
+    doc.line(12, cursorY, pageWidth - 12, cursorY);
+
+    cursorY += 8;
+    doc.setFontSize(14);
+    doc.text("RAPPORT DES TRANSACTIONS", pageWidth / 2, cursorY, { align: "center" });
+
+    cursorY += 7;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.text(
+      `Période: ${formatDateOnly(isoFromDateInput(dateDebut))} au ${formatDateOnly(isoFromDateInput(dateFin, true))}`,
+      12,
+      cursorY
+    );
+    doc.text(`Généré le: ${new Date().toLocaleString("fr-FR")}`, pageWidth - 12, cursorY, {
+      align: "right",
+    });
+
+    cursorY += 6;
+    const filtres = [
+      `Type: ${typeFilter === "ALL" ? "Tous" : typeFilter}`,
+      `Catégorie: ${categorieId ? categories.find((c) => String(c.id) === categorieId)?.nom ?? "-" : "Toutes"
+      }`,
+      `Évènement: ${evenementId ? evenements.find((e) => String(e.id) === evenementId)?.nom ?? "-" : "Tous"
+      }`,
+      `Recherche: ${search.trim() ? search.trim() : "-"}`,
+    ];
+    doc.text(filtres.join(" | "), 12, cursorY);
+
+    const tableBody = rows.map((row, index) => [
+      String(index + 1),
+      formatDate(row.dateOperation),
+      row.type,
+      row.description || "Sans description",
+      row.categorie?.nom || "-",
+      row.evenement?.nom || "-",
+      row.modePaiement || "-",
+      formatMoneyForPdf(row.montant),
+    ]);
+
+    autoTable(doc, {
+      startY: cursorY + 4,
+      head: [["#", "Date", "Type", "Description", "Catégorie", "Évènement", "Mode paiement", "Montant"]],
+      body: tableBody,
+      margin: { left: 8, right: 8, bottom: 18 },
+      styles: {
+        fontSize: 8,
+        lineColor: [150, 150, 150],
+        lineWidth: 0.2,
+        cellPadding: 1.8,
+        valign: "middle",
+        overflow: "linebreak",
+      },
+      headStyles: {
+        fillColor: [30, 64, 175],
+        textColor: 255,
+        fontStyle: "bold",
+        halign: "center",
+      },
+      bodyStyles: { textColor: [30, 30, 30] },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      columnStyles: {
+        0: { cellWidth: 10, halign: "center" },
+        1: { cellWidth: 34 },
+        2: { cellWidth: 18, halign: "center" },
+        3: { cellWidth: 86 },
+        4: { cellWidth: 38 },
+        5: { cellWidth: 38 },
+        6: { cellWidth: 30 },
+        7: { cellWidth: 27, halign: "right" },
+      },
+      didParseCell: (data) => {
+        if (data.section === "body" && data.column.index === 2) {
+          const value = String(data.cell.raw);
+          if (value === "ENTREE") data.cell.styles.textColor = [22, 163, 74];
+          if (value === "SORTIE") data.cell.styles.textColor = [220, 38, 38];
+        }
+        if (data.section === "body" && data.column.index === 7) {
+          data.cell.styles.halign = "right";
+        }
+      },
+    });
+
+    const autoTableState = doc as unknown as { lastAutoTable?: { finalY: number } };
+    doc.setPage(doc.getNumberOfPages());
+    let finalY = autoTableState.lastAutoTable?.finalY ?? 170;
+    const espaceNecessaire = 30;
+    if (finalY + espaceNecessaire > pageHeight - 10) {
+      doc.addPage();
+      finalY = 20;
+    }
+
+    const totalEntreesTexte = formatMoneyForPdf(totals.totalEntrees);
+    const totalSortiesTexte = formatMoneyForPdf(totals.totalSorties);
+    const soldeTexte = formatMoneyForPdf(totals.solde);
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(20, 20, 20);
+    doc.text(`Total Entrées: ${totalEntreesTexte}`, 12, finalY + 8);
+    doc.text(`Total Sorties: ${totalSortiesTexte}`, 110, finalY + 8);
+    doc.text(`Solde: ${soldeTexte}`, 208, finalY + 8);
+
+    const visaY = pageHeight - 14;
+    const leftLineStart = 20;
+    const leftLineEnd = 100;
+    const rightLineStart = pageWidth - 100;
+    const rightLineEnd = pageWidth - 20;
+    doc.setDrawColor(70, 70, 70);
+    doc.setLineWidth(0.3);
+    doc.line(leftLineStart, visaY - 6, leftLineEnd, visaY - 6);
+    doc.line(rightLineStart, visaY - 6, rightLineEnd, visaY - 6);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.text("Visa du Trésorier Général", (leftLineStart + leftLineEnd) / 2, visaY, { align: "center" });
+    doc.text("Visa du Chargé Paroissial", (rightLineStart + rightLineEnd) / 2, visaY, {
+      align: "center",
+    });
+
+    const nombrePagesFinal = doc.getNumberOfPages();
+    for (let page = 1; page <= nombrePagesFinal; page += 1) {
+      doc.setPage(page);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(80, 80, 80);
+      doc.text(`Page ${page} / ${nombrePagesFinal}`, pageWidth - 8, pageHeight - 6, { align: "right" });
+    }
+
+    const fileName = `rapport-transactions-${dateDebut}-au-${dateFin}.pdf`;
+
+    // datauristring = data:application/pdf;filename=generated.pdf;base64,XXXXX
+    const dataUri = doc.output("datauristring") as string;
+    return { dataUri, fileName };
+  }
+
   async function exporterPdfRapport() {
     if (!hasGenerated || rows.length === 0) {
       return;
     }
 
+    setError(null);
+    setSuccessMessage(null);
+
     try {
-      const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
-        import("jspdf"),
-        import("jspdf-autotable"),
-      ]);
+      const { dataUri, fileName } = await construirePdfRapport();
 
-      const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
-      const pageWidth = doc.internal.pageSize.getWidth();
-      const pageHeight = doc.internal.pageSize.getHeight();
-
-      const headerLines = [
-        "EGLISE DU CHRISTIANISME CELESTE",
-        "SAINT SIEGE DE PORTO-NOVO",
-        "DIOCESE DU BENIN",
-        "REGION MONO",
-        "SOUS-REGION LOKOSSA",
-        "PAROISSE SAINT MICHEL DE LOKOSSA CENTRE",
-        "BP : 202 LOKOSSA",
-      ];
-
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(10);
-      let cursorY = 12;
-      for (const line of headerLines) {
-        doc.text(line, pageWidth / 2, cursorY, { align: "center" });
-        cursorY += 5;
-      }
-
-      cursorY += 2;
-      doc.setDrawColor(40, 40, 40);
-      doc.setLineWidth(0.5);
-      doc.line(12, cursorY, pageWidth - 12, cursorY);
-
-      cursorY += 8;
-      doc.setFontSize(14);
-      doc.text("RAPPORT DES TRANSACTIONS", pageWidth / 2, cursorY, { align: "center" });
-
-      cursorY += 7;
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(9);
-      doc.text(
-        `Période: ${formatDateOnly(isoFromDateInput(dateDebut))} au ${formatDateOnly(isoFromDateInput(dateFin, true))}`,
-        12,
-        cursorY
-      );
-      doc.text(
-        `Généré le: ${new Date().toLocaleString("fr-FR")}`,
-        pageWidth - 12,
-        cursorY,
-        { align: "right" }
-      );
-
-      cursorY += 6;
-      const filtres = [
-        `Type: ${typeFilter === "ALL" ? "Tous" : typeFilter}`,
-        `Catégorie: ${categorieId ? categories.find((c) => String(c.id) === categorieId)?.nom ?? "-" : "Toutes"}`,
-        `Évènement: ${evenementId ? evenements.find((e) => String(e.id) === evenementId)?.nom ?? "-" : "Tous"}`,
-        `Recherche: ${search.trim() ? search.trim() : "-"}`,
-      ];
-      doc.text(filtres.join(" | "), 12, cursorY);
-
-      const tableBody = rows.map((row, index) => [
-        String(index + 1),
-        formatDate(row.dateOperation),
-        row.type,
-        row.description || "Sans description",
-        row.categorie?.nom || "-",
-        row.evenement?.nom || "-",
-        row.modePaiement || "-",
-        formatMoneyForPdf(row.montant),
-      ]);
-
-      autoTable(doc, {
-        startY: cursorY + 4,
-        head: [["#", "Date", "Type", "Description", "Catégorie", "Évènement", "Mode paiement", "Montant"]],
-        body: tableBody,
-        margin: {
-          left: 8,
-          right: 8,
-          bottom: 18,
-        },
-        styles: {
-          fontSize: 8,
-          lineColor: [150, 150, 150],
-          lineWidth: 0.2,
-          cellPadding: 1.8,
-          valign: "middle",
-          overflow: "linebreak",
-        },
-        headStyles: {
-          fillColor: [30, 64, 175],
-          textColor: 255,
-          fontStyle: "bold",
-          halign: "center",
-        },
-        bodyStyles: {
-          textColor: [30, 30, 30],
-        },
-        alternateRowStyles: {
-          fillColor: [248, 250, 252],
-        },
-        columnStyles: {
-          0: { cellWidth: 10, halign: "center" },
-          1: { cellWidth: 34 },
-          2: { cellWidth: 18, halign: "center" },
-          3: { cellWidth: 86 },
-          4: { cellWidth: 38 },
-          5: { cellWidth: 38 },
-          6: { cellWidth: 30 },
-          7: { cellWidth: 27, halign: "right" },
-        },
-        didParseCell: (data) => {
-          if (data.section === "body" && data.column.index === 2) {
-            const value = String(data.cell.raw);
-            if (value === "ENTREE") {
-              data.cell.styles.textColor = [22, 163, 74];
-            }
-            if (value === "SORTIE") {
-              data.cell.styles.textColor = [220, 38, 38];
-            }
-          }
-          if (data.section === "body" && data.column.index === 7) {
-            data.cell.styles.halign = "right";
-          }
-        },
-      });
-
-      const autoTableState = doc as unknown as { lastAutoTable?: { finalY: number } };
-      doc.setPage(doc.getNumberOfPages());
-      let finalY = autoTableState.lastAutoTable?.finalY ?? 170;
-      const espaceNecessaire = 30;
-      if (finalY + espaceNecessaire > pageHeight - 10) {
-        doc.addPage();
-        finalY = 20;
-      }
-
-      const totalEntreesTexte = formatMoneyForPdf(totals.totalEntrees);
-      const totalSortiesTexte = formatMoneyForPdf(totals.totalSorties);
-      const soldeTexte = formatMoneyForPdf(totals.solde);
-
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(9);
-      doc.setTextColor(20, 20, 20);
-      doc.text(`Total Entrées: ${totalEntreesTexte}`, 12, finalY + 8);
-      doc.text(`Total Sorties: ${totalSortiesTexte}`, 110, finalY + 8);
-      doc.text(`Solde: ${soldeTexte}`, 208, finalY + 8);
-
-      const visaY = pageHeight - 14;
-      const lineStart = pageWidth - 100;
-      const lineEnd = pageWidth - 20;
-      doc.setDrawColor(70, 70, 70);
-      doc.setLineWidth(0.3);
-      doc.line(lineStart, visaY - 6, lineEnd, visaY - 6);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(10);
-      doc.text("Visa du Chargé Paroissial", (lineStart + lineEnd) / 2, visaY, { align: "center" });
-
-      const nombrePagesFinal = doc.getNumberOfPages();
-      for (let page = 1; page <= nombrePagesFinal; page += 1) {
-        doc.setPage(page);
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(8);
-        doc.setTextColor(80, 80, 80);
-        doc.text(`Page ${page} / ${nombrePagesFinal}`, pageWidth - 8, pageHeight - 6, { align: "right" });
-      }
-
-      const fileName = `rapport-transactions-${dateDebut}-au-${dateFin}.pdf`;
-      doc.save(fileName);
+      // Telechargement local a partir du data URI
+      const anchor = document.createElement("a");
+      anchor.href = dataUri;
+      anchor.download = fileName;
+      anchor.click();
     } catch {
       setError("Export PDF impossible pour le moment.");
+    }
+  }
+
+  async function envoyerRapportParEmail() {
+    if (!hasGenerated || rows.length === 0) {
+      return;
+    }
+
+    setSendingEmail(true);
+    setError(null);
+    setSuccessMessage(null);
+
+    try {
+      const { dataUri, fileName } = await construirePdfRapport();
+
+      // Extrait uniquement la partie base64 apres la virgule
+      const pdfBase64 = dataUri.split(",")[1] ?? "";
+      if (!pdfBase64) {
+        throw new Error("PDF base64 vide");
+      }
+
+      const response = await fetchWithAuth<EnvoyerRapportEmailResponse>("/api/rapports", {
+        method: "POST",
+        body: JSON.stringify({
+          fileName,
+          pdfBase64,
+        }),
+      });
+
+      setSuccessMessage(`${response.message} à ${response.destinataire}`);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Envoi email impossible pour le moment.");
+    } finally {
+      setSendingEmail(false);
     }
   }
 
@@ -539,6 +596,7 @@ export default function DashboardRapportsPage() {
                 setRows([]);
                 setHasGenerated(false);
                 setError(null);
+                setSuccessMessage(null);
               }}
               className="rounded-xl border border-border dark:border-darkborder px-4 py-2 text-sm text-link dark:text-white"
             >
@@ -553,7 +611,19 @@ export default function DashboardRapportsPage() {
               title="Exporter le rapport en PDF"
             >
               <FileText size={14} />
-              Exporter PDF
+              Télécharger le PDF
+            </button>
+
+
+            <button
+              type="button"
+              disabled={!hasGenerated || rows.length === 0 || sendingEmail}
+              onClick={envoyerRapportParEmail}
+              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              title="Envoyer le rapport PDF par email"
+            >
+              <Mail size={14} />
+              {sendingEmail ? "Envoi en cours..." : "Envoyer par mail"}
             </button>
           </div>
         </form>
@@ -562,6 +632,12 @@ export default function DashboardRapportsPage() {
           <div className="rounded-xl bg-lighterror border border-lighterror p-4 text-error text-sm flex items-start gap-2">
             <AlertCircle size={16} className="mt-0.5" />
             <span>{error}</span>
+          </div>
+        ) : null}
+
+        {successMessage ? (
+          <div className="rounded-xl bg-lightsuccess border border-lightsuccess p-4 text-success text-sm">
+            <span>{successMessage}</span>
           </div>
         ) : null}
 

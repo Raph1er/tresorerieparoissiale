@@ -94,14 +94,27 @@ const SidebarContent: MenuItem[] = [
   },
 
   // ── Section 4 : Administration ────────────────────────────────────────
+  // {
+  //   heading: "ADMINISTRATION",
+  //   children: [
+  //     {
+  //       name: "Utilisateurs",
+  //       icon: "solar:users-group-rounded-line-duotone",
+  //       id: "utilisateurs",
+  //       url: "/dashboard/utilisateurs",
+  //     },
+  //   ],
+  // },
+
+  // ── Section 5 : Compte personnel ──────────────────────────────────────
   {
-    heading: "ADMINISTRATION",
+    heading: "MON COMPTE",
     children: [
       {
-        name: "Utilisateurs",
-        icon: "solar:users-group-rounded-line-duotone",
-        id: "utilisateurs",
-        url: "/dashboard/utilisateurs",
+        name: "Mon profil",
+        icon: "solar:user-id-line-duotone",
+        id: "profile",
+        url: "/dashboard/profil",
       },
     ],
   },

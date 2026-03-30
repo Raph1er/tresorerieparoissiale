@@ -140,11 +140,10 @@ const HeaderLayout = () => {
           z-[5] → au-dessus du contenu mais sous les modales
           ════════════════════════════════════════════════════════════════════ */}
       <header
-        className={`sticky top-0 z-[5] transition-shadow ${
-          isSticky
+        className={`sticky top-0 z-[5] transition-shadow ${isSticky
             ? "bg-white dark:bg-dark shadow-md"  // ombre quand on a scrollé
             : "bg-white dark:bg-darkgray"
-        }`}
+          }`}
       >
         <Navbar
           fluid
@@ -205,8 +204,20 @@ const HeaderLayout = () => {
                   </p>
                 </div>
 
-                {/* ── Bouton déconnexion ────────────────────────────── */}
-                <div className="p-3">
+                {/* ── Actions du profil ─────────────────────────────── */}
+                <div className="p-3 space-y-2">
+                  <a
+                    href="/dashboard/profil"
+                    className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm hover:bg-lightprimary dark:hover:bg-darkborder text-left text-dark dark:text-white transition-colors group"
+                  >
+                    <Icon
+                      icon="solar:user-id-line-duotone"
+                      height={16}
+                      className="group-hover:text-primary"
+                    />
+                    <span>Mon profil</span>
+                  </a>
+
                   <Button
                     size="sm"
                     onClick={handleLogout}

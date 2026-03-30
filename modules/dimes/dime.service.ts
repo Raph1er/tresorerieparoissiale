@@ -16,10 +16,10 @@ import type {
   UpdateRepartitionDimeDTO,
 } from './dime.types';
 
-const NOM_CATEGORIE_ENTREE = 'Dimes';
-const NOM_CATEGORIE_PAROISSE_MERE = 'Dimes - Paroisse Mere';
-const NOM_CATEGORIE_RESPONSABLE = 'Dimes - Responsable';
-const NOM_CATEGORIE_LEVITES = 'Dimes - Levites';
+const NOM_CATEGORIE_ENTREE = 'Dîmes';
+const NOM_CATEGORIE_PAROISSE_MERE = 'Dîmes - Paroisse Mère';
+const NOM_CATEGORIE_RESPONSABLE = 'Dîmes - Responsable';
+const NOM_CATEGORIE_LEVITES = 'Dîmes - Lévites';
 
 export class DimeService {
   private construireDescriptionBase(transactionId: number): string {
