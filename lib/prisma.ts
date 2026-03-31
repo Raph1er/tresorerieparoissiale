@@ -161,10 +161,10 @@ function normalizeCategorie(row: AnyRecord): AnyRecord {
     parentId: row.parent_id,
     parent: row.parent
       ? {
-          id: row.parent.id,
-          nom: row.parent.nom,
-          type: row.parent.type,
-        }
+        id: row.parent.id,
+        nom: row.parent.nom,
+        type: row.parent.type,
+      }
       : null,
     creeLe: toDateOrNull(row.cree_le),
   };
@@ -197,25 +197,25 @@ function normalizeTransaction(row: AnyRecord): AnyRecord {
     categorieId: row.categorie_id,
     categorie: row.categorie
       ? {
-          id: row.categorie.id,
-          nom: row.categorie.nom,
-          type: row.categorie.type,
-        }
+        id: row.categorie.id,
+        nom: row.categorie.nom,
+        type: row.categorie.type,
+      }
       : null,
     utilisateurId: row.utilisateur_id,
     utilisateur: row.utilisateur
       ? {
-          id: row.utilisateur.id,
-          nom: row.utilisateur.nom,
-          email: row.utilisateur.email,
-        }
+        id: row.utilisateur.id,
+        nom: row.utilisateur.nom,
+        email: row.utilisateur.email,
+      }
       : null,
     evenementId: row.evenement_id,
     evenement: row.evenement
       ? {
-          id: row.evenement.id,
-          nom: row.evenement.nom,
-        }
+        id: row.evenement.id,
+        nom: row.evenement.nom,
+      }
       : null,
   };
 }
@@ -232,12 +232,12 @@ function normalizeRepartitionDime(row: AnyRecord): AnyRecord {
     creeLe: toDateOrNull(row.cree_le),
     transaction: row.transaction
       ? {
-          id: row.transaction.id,
-          montant: row.transaction.montant,
-          type: row.transaction.type,
-          description: row.transaction.description,
-          dateOperation: toDateOrNull(row.transaction.date_operation),
-        }
+        id: row.transaction.id,
+        montant: row.transaction.montant,
+        type: row.transaction.type,
+        description: row.transaction.description,
+        dateOperation: toDateOrNull(row.transaction.date_operation),
+      }
       : null,
   };
 }

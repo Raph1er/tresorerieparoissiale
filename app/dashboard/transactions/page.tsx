@@ -459,11 +459,10 @@ export default function DashboardTransactionsPage() {
                 key={option.value}
                 type="button"
                 onClick={() => handleTypeChange(option.value)}
-                className={`px-3 py-2 text-sm font-medium ${
-                  typeFilter === option.value
+                className={`px-3 py-2 text-sm font-medium ${typeFilter === option.value
                     ? "bg-primary text-white"
                     : "bg-transparent text-link dark:text-white"
-                }`}
+                  }`}
               >
                 <span className="inline-flex items-center gap-1">
                   <Filter size={14} />
@@ -529,11 +528,10 @@ export default function DashboardTransactionsPage() {
                   <tr key={tx.id} className="border-b border-border/60 dark:border-darkborder/60 hover:bg-lightgray/50">
                     <td className="py-3 pr-3">
                       <span
-                        className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold ${
-                          tx.type === "ENTREE"
+                        className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold ${tx.type === "ENTREE"
                             ? "bg-lightsuccess text-success"
                             : "bg-lighterror text-error"
-                        }`}
+                          }`}
                       >
                         {tx.type === "ENTREE" ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
                         {tx.type}

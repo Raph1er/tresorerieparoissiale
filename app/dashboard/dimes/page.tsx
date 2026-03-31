@@ -470,8 +470,8 @@ export default function DashboardDimesPage() {
                     setSortFilter(option.value);
                   }}
                   className={`px-3 py-2 text-sm font-medium ${sortFilter === option.value
-                      ? "bg-primary text-white"
-                      : "bg-transparent text-link dark:text-white"
+                    ? "bg-primary text-white"
+                    : "bg-transparent text-link dark:text-white"
                     }`}
                 >
                   {option.label}
