@@ -16,6 +16,11 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Trésorerie Paroisse",
   description: "Plateforme de gestion financière paroissiale",
+  icons: {
+    icon: "/logo-ecc.webp",
+    shortcut: "/logo-ecc.webp",
+    apple: "/logo-ecc.webp",
+  },
 };
 
 export default function RootLayout({

@@ -22,7 +22,7 @@ const Logo = () => {
       {/* Emblème circulaire avec le logo de la paroisse */}
       <span className="h-10 w-10 rounded-full bg-white border border-border dark:border-darkborder flex items-center justify-center overflow-hidden flex-shrink-0">
         <Image
-          src="/logo ECC.webp"
+          src="/logo-ecc.webp"
           alt="Logo de la paroisse"
           width={36}
           height={36}
