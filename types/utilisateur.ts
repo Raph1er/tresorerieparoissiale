@@ -3,7 +3,7 @@
  * Ce fichier est la référence pour les routes API et validations.
  */
 
-import { RoleUtilisateur } from '@prisma/client';
+import { RoleUtilisateur } from './enums';
 
 /**
  * Données nécessaires à la création d'un utilisateur.

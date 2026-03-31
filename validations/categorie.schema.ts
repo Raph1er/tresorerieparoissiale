@@ -3,7 +3,7 @@
  * Ce fichier remplace un schéma externe par des fonctions TypeScript explicites.
  */
 
-import { TypeTransaction } from '@prisma/client';
+import { TypeTransaction } from '@/types/enums';
 import {
 	CategorieFilter,
 	CreateCategorieDTO,

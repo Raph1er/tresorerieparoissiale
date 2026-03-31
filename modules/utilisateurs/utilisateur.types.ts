@@ -3,7 +3,7 @@
  * Définit les structures de données pour les opérations sur les utilisateurs
  */
 
-import { RoleUtilisateur } from '@prisma/client';
+import { RoleUtilisateur } from '@/types/enums';
 
 /**
  * Interface pour les données de création d'un utilisateur

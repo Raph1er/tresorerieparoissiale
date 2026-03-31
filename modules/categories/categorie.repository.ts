@@ -3,8 +3,8 @@
  * Cette couche centralise toutes les requêtes Prisma du module.
  */
 
-import prisma from '@/lib/prisma';
-import { Prisma, TypeTransaction } from '@prisma/client';
+import supabaseDb from '@/lib/supabase-db';
+import { TypeTransaction } from '@/types/enums';
 import {
 	CategorieFilter,
 	CategorieResponseDTO,
@@ -79,13 +79,13 @@ export class CategorieRepository {
 				transactions: true,
 			},
 		},
-	} satisfies Prisma.CategorieSelect;
+	} as const;
 
 	/**
 	 * Crée une nouvelle catégorie.
 	 */
 	async create(data: CreateCategorieDTO): Promise<CategorieResponseDTO> {
-		const categorie = await prisma.categorie.create({
+		const categorie = await supabaseDb.categorie.create({
 			data: {
 				nom: data.nom,
 				type: data.type,
@@ -104,9 +104,9 @@ export class CategorieRepository {
 	 * Récupère une catégorie par son ID.
 	 */
 	async findById(id: number, includeInactive = true): Promise<CategorieResponseDTO | null> {
-		const where: Prisma.CategorieWhereUniqueInput = { id };
+		const where: any = { id };
 
-		const categorie = await prisma.categorie.findUnique({
+		const categorie = await supabaseDb.categorie.findUnique({
 			where,
 			select: this.selectCategorie,
 		});
@@ -126,7 +126,7 @@ export class CategorieRepository {
 	 * Met à jour une catégorie existante.
 	 */
 	async update(id: number, data: UpdateCategorieDTO): Promise<CategorieResponseDTO> {
-		const updateData: Prisma.CategorieUpdateInput = {};
+		const updateData: any = {};
 
 		if (data.nom !== undefined) updateData.nom = data.nom;
 		if (data.type !== undefined) updateData.type = data.type;
@@ -134,7 +134,7 @@ export class CategorieRepository {
 		if (data.parentId !== undefined) updateData.parent = data.parentId === null ? { disconnect: true } : { connect: { id: data.parentId } };
 		if (data.actif !== undefined) updateData.actif = data.actif;
 
-		const categorie = await prisma.categorie.update({
+		const categorie = await supabaseDb.categorie.update({
 			where: { id },
 			data: updateData,
 			select: this.selectCategorie,
@@ -147,7 +147,7 @@ export class CategorieRepository {
 	 * Désactive une catégorie (suppression logique).
 	 */
 	async delete(id: number): Promise<CategorieResponseDTO> {
-		const categorie = await prisma.categorie.update({
+		const categorie = await supabaseDb.categorie.update({
 			where: { id },
 			data: {
 				actif: false,
@@ -165,7 +165,7 @@ export class CategorieRepository {
 		options: PaginationOptions,
 		filters?: CategorieFilter
 	): Promise<PaginatedResponse<CategorieResponseDTO>> {
-		const where: Prisma.CategorieWhereInput = {};
+		const where: any = {};
 
 		// Filtre textuel sur le nom et la description.
 		if (filters?.search) {
@@ -191,15 +191,15 @@ export class CategorieRepository {
 			where.parentId = filters.parentId;
 		}
 
-		const total = await prisma.categorie.count({ where });
+		const total = await supabaseDb.categorie.count({ where });
 		const totalPages = Math.ceil(total / options.limit) || 1;
 		const skip = (options.page - 1) * options.limit;
 
-		const orderBy: Prisma.CategorieOrderByWithRelationInput = {
+		const orderBy: any = {
 			[options.orderBy ?? 'creeLe']: options.order ?? 'desc',
 		};
 
-		const categories = await prisma.categorie.findMany({
+		const categories = await supabaseDb.categorie.findMany({
 			where,
 			select: this.selectCategorie,
 			skip,
@@ -208,7 +208,7 @@ export class CategorieRepository {
 		});
 
 		return {
-			data: categories.map((categorie) => versCategorieResponseDTO(categorie as CategorieDbPayload)),
+			data: categories.map((categorie: any) => versCategorieResponseDTO(categorie as CategorieDbPayload)),
 			page: options.page,
 			total,
 			totalPages,
@@ -222,7 +222,7 @@ export class CategorieRepository {
 	 * Vérifie si un nom de catégorie existe déjà pour un type donné.
 	 */
 	async nomExists(nom: string, type: TypeTransaction, exceptId?: number): Promise<boolean> {
-		const where: Prisma.CategorieWhereInput = {
+		const where: any = {
 			nom,
 			type,
 		};
@@ -231,7 +231,7 @@ export class CategorieRepository {
 			where.id = { not: exceptId };
 		}
 
-		const count = await prisma.categorie.count({ where });
+		const count = await supabaseDb.categorie.count({ where });
 		return count > 0;
 	}
 
@@ -239,7 +239,7 @@ export class CategorieRepository {
 	 * Vérifie si une catégorie a des sous-catégories actives.
 	 */
 	async hasActiveChildren(id: number): Promise<boolean> {
-		const count = await prisma.categorie.count({
+		const count = await supabaseDb.categorie.count({
 			where: {
 				parentId: id,
 				actif: true,
@@ -253,7 +253,7 @@ export class CategorieRepository {
 	 * Vérifie si une catégorie est utilisée par des transactions.
 	 */
 	async isUsedByTransactions(id: number): Promise<boolean> {
-		const count = await prisma.transaction.count({
+		const count = await supabaseDb.transaction.count({
 			where: {
 				categorieId: id,
 				estSupprime: false,
@@ -267,7 +267,7 @@ export class CategorieRepository {
 	 * Compte les catégories actives par type.
 	 */
 	async countByType(): Promise<Record<TypeTransaction, number>> {
-		const result = await prisma.categorie.groupBy({
+		const result = await supabaseDb.categorie.groupBy({
 			by: ['type'],
 			where: {
 				actif: true,
@@ -282,8 +282,8 @@ export class CategorieRepository {
 			SORTIE: 0,
 		};
 
-		result.forEach((ligne) => {
-			compte[ligne.type] = ligne._count.id;
+		result.forEach((ligne: any) => {
+			compte[ligne.type as TypeTransaction] = ligne._count.id;
 		});
 
 		return compte;

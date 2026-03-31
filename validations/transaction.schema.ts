@@ -3,7 +3,7 @@
  * Gère la validation des payloads et query params pour les opérations financières.
  */
 
-import { TypeTransaction } from '@prisma/client';
+import { TypeTransaction } from '@/types/enums';
 import type {
   CreateTransactionDTO,
   UpdateTransactionDTO,

@@ -3,7 +3,7 @@
  * Contient la logique métier et appelle le repository pour l'accès aux données.
  */
 
-import prisma from '@/lib/prisma';
+import supabaseDb from '@/lib/supabase-db';
 import logger from '@/lib/logger';
 import { TransactionRepository } from './transaction.repository';
 import { dimeService } from '@/modules/dimes/dime.service';
@@ -50,7 +50,7 @@ export class TransactionService {
 
     // Vérifier que la catégorie existe et est active si fournie.
     if (data.categorieId !== undefined) {
-      const categorie = await prisma.categorie.findUnique({
+      const categorie = await supabaseDb.categorie.findUnique({
         where: { id: data.categorieId },
         select: { id: true, nom: true, type: true, actif: true },
       });
@@ -75,7 +75,7 @@ export class TransactionService {
 
     // Vérifier que l'évènement existe et est actif si fourni
     if (data.evenementId !== undefined) {
-      const evenement = await prisma.evenement.findUnique({
+      const evenement = await supabaseDb.evenement.findUnique({
         where: { id: data.evenementId },
         select: { id: true, nom: true, actif: true },
       });
@@ -137,7 +137,7 @@ export class TransactionService {
     // Si on change la catégorie, vérifier qu'elle existe et est active
     if (data.categorieId !== undefined && data.categorieId !== transactionExistante.categorieId) {
       if (data.categorieId !== null) {
-        const categorie = await prisma.categorie.findUnique({
+        const categorie = await supabaseDb.categorie.findUnique({
           where: { id: data.categorieId },
           select: { id: true, nom: true, type: true, actif: true },
         });
@@ -166,7 +166,7 @@ export class TransactionService {
         data.categorieId !== undefined ? data.categorieId : transactionExistante.categorieId;
 
       if (categorieCibleId !== null) {
-        const categorieCible = await prisma.categorie.findUnique({
+        const categorieCible = await supabaseDb.categorie.findUnique({
           where: { id: categorieCibleId },
           select: { type: true },
         });
@@ -185,7 +185,7 @@ export class TransactionService {
       data.evenementId !== null &&
       data.evenementId !== transactionExistante.evenementId
     ) {
-      const evenement = await prisma.evenement.findUnique({
+      const evenement = await supabaseDb.evenement.findUnique({
         where: { id: data.evenementId },
         select: { id: true, nom: true, actif: true },
       });
@@ -217,7 +217,7 @@ export class TransactionService {
 
     // Si la transaction est la transaction ENTREE d'une dîme,
     // synchroniser via le module dîmes pour maintenir toutes les répartitions cohérentes.
-    const repartitionLiee = await prisma.repartitionDime.findUnique({
+    const repartitionLiee = await supabaseDb.repartitionDime.findUnique({
       where: { transactionId: id },
       select: { id: true },
     });

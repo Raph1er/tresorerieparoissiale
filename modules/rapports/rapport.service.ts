@@ -2,8 +2,8 @@
  * Service metier du module Rapports.
  */
 
-import prisma from '@/lib/prisma';
-import { TypeTransaction, Prisma } from '@prisma/client';
+import supabaseDb from '@/lib/supabase-db';
+import { TypeTransaction } from '@/types/enums';
 import type {
   RapportFilters,
   RapportGlobalResponse,
@@ -35,8 +35,8 @@ function keyMois(date: Date): string {
   return `${year}-${month}`;
 }
 
-function construireWhere(filters: RapportFilters): Prisma.TransactionWhereInput {
-  const where: Prisma.TransactionWhereInput = {
+function construireWhere(filters: RapportFilters): any {
+  const where: any = {
     estSupprime: false,
   };
 
@@ -69,7 +69,7 @@ export class RapportService {
   async getRapportGlobal(filters: RapportFilters): Promise<RapportGlobalResponse> {
     const where = construireWhere(filters);
 
-    const transactions = await prisma.transaction.findMany({
+    const transactions = await supabaseDb.transaction.findMany({
       where,
       select: {
         id: true,
@@ -174,12 +174,12 @@ export class RapportService {
       {
         type: 'ENTREE',
         total: totalEntrees,
-        nombreTransactions: transactions.filter((t) => t.type === 'ENTREE').length,
+        nombreTransactions: transactions.filter((t: TransactionRapportRow) => t.type === 'ENTREE').length,
       },
       {
         type: 'SORTIE',
         total: totalSorties,
-        nombreTransactions: transactions.filter((t) => t.type === 'SORTIE').length,
+        nombreTransactions: transactions.filter((t: TransactionRapportRow) => t.type === 'SORTIE').length,
       },
     ];
 

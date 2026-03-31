@@ -4,7 +4,8 @@
  */
 
 import logger from '@/lib/logger';
-import prisma from '@/lib/prisma';
+import supabaseDb from '@/lib/supabase-db';
+import { supabaseServer } from '@/lib/supabase';
 import { dimeRepository } from './dime.repository';
 import { calculerRepartitionDime } from './dime.calcul';
 import type {
@@ -21,6 +22,35 @@ const NOM_CATEGORIE_PAROISSE_MERE = 'Dîmes - Paroisse Mère';
 const NOM_CATEGORIE_RESPONSABLE = 'Dîmes - Responsable';
 const NOM_CATEGORIE_LEVITES = 'Dîmes - Lévites';
 
+function parseDateInput(value: Date | string): Date {
+  if (value instanceof Date) {
+    return value;
+  }
+
+  const trimmed = value.trim();
+  const dateOnlyMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (dateOnlyMatch) {
+    const year = Number(dateOnlyMatch[1]);
+    const month = Number(dateOnlyMatch[2]);
+    const day = Number(dateOnlyMatch[3]);
+    return new Date(year, month - 1, day, 0, 0, 0, 0);
+  }
+
+  return new Date(trimmed);
+}
+
+function toDbTimestamp(value: Date | string): string {
+  const date = parseDateInput(value);
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getDate()}`.padStart(2, '0');
+  const hours = `${date.getHours()}`.padStart(2, '0');
+  const minutes = `${date.getMinutes()}`.padStart(2, '0');
+  const seconds = `${date.getSeconds()}`.padStart(2, '0');
+  const milliseconds = `${date.getMilliseconds()}`.padStart(3, '0');
+  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}.${milliseconds}`;
+}
+
 export class DimeService {
   private construireDescriptionBase(transactionId: number): string {
     return `Repartition - `;
@@ -31,7 +61,7 @@ export class DimeService {
       return;
     }
 
-    const evenement = await prisma.evenement.findUnique({
+    const evenement = await supabaseDb.evenement.findUnique({
       where: { id: evenementId },
       select: { id: true, actif: true },
     });
@@ -44,7 +74,7 @@ export class DimeService {
   private async trouverTransactionsGenerees(transactionEntreeId: number) {
     const descriptionBase = this.construireDescriptionBase(transactionEntreeId);
 
-    const transactionsGeneres = await prisma.transaction.findMany({
+    const transactionsGeneres = await supabaseDb.transaction.findMany({
       where: {
         description: {
           contains: descriptionBase,
@@ -57,9 +87,9 @@ export class DimeService {
 
     return {
       descriptionBase,
-      paroisse: transactionsGeneres.find((t) => t.description?.includes('Paroisse Mere')),
-      responsable: transactionsGeneres.find((t) => t.description?.includes('Responsable')),
-      levites: transactionsGeneres.find((t) => t.description?.includes('Levites')),
+      paroisse: transactionsGeneres.find((t: any) => t.description?.includes('Paroisse Mere')),
+      responsable: transactionsGeneres.find((t: any) => t.description?.includes('Responsable')),
+      levites: transactionsGeneres.find((t: any) => t.description?.includes('Levites')),
     };
   }
 
@@ -74,7 +104,7 @@ export class DimeService {
       throw new Error(`Aucune repartition de dime trouvee pour la transaction ${transactionEntreeId}`);
     }
 
-    const transactionEntree = await prisma.transaction.findUnique({
+    const transactionEntree = await supabaseDb.transaction.findUnique({
       where: { id: transactionEntreeId },
       select: {
         id: true,
@@ -100,7 +130,7 @@ export class DimeService {
     const dateOperationFinale =
       data.dateOperation !== undefined
         ? typeof data.dateOperation === 'string'
-          ? new Date(data.dateOperation)
+          ? parseDateInput(data.dateOperation)
           : data.dateOperation
         : transactionEntree.dateOperation;
 
@@ -116,65 +146,27 @@ export class DimeService {
     const montants = calculerRepartitionDime(montantFinal);
     const generated = await this.trouverTransactionsGenerees(transactionEntreeId);
 
-    await prisma.$transaction(async (tx) => {
-      await tx.transaction.update({
-        where: { id: transactionEntreeId },
-        data: {
-          montant: montantFinal,
-          description: descriptionFinale,
-          dateOperation: dateOperationFinale,
-          modePaiement: modePaiementFinal,
-          evenementId: evenementIdFinal ?? null,
-        },
-      });
-
-      if (generated.paroisse) {
-        await tx.transaction.update({
-          where: { id: generated.paroisse.id },
-          data: {
-            montant: montants.partParoisseMere,
-            dateOperation: dateOperationFinale,
-            evenementId: evenementIdFinal ?? null,
-            description: `${generated.descriptionBase} - Paroisse Mere`,
-          },
-        });
-      }
-
-      if (generated.responsable) {
-        await tx.transaction.update({
-          where: { id: generated.responsable.id },
-          data: {
-            montant: montants.partResponsable,
-            dateOperation: dateOperationFinale,
-            evenementId: evenementIdFinal ?? null,
-            description: `${generated.descriptionBase} - Responsable`,
-          },
-        });
-      }
-
-      if (generated.levites) {
-        await tx.transaction.update({
-          where: { id: generated.levites.id },
-          data: {
-            montant: montants.partLevites,
-            dateOperation: dateOperationFinale,
-            evenementId: evenementIdFinal ?? null,
-            description: `${generated.descriptionBase} - Levites`,
-          },
-        });
-      }
-
-      await tx.repartitionDime.update({
-        where: { id: repartition.id },
-        data: {
-          totalDime: montants.totalDime,
-          partParoisseMere: montants.partParoisseMere,
-          partCaisseLocale: montants.partCaisseLocale,
-          partResponsable: montants.partResponsable,
-          partLevites: montants.partLevites,
-        },
-      });
+    const { error: syncError } = await supabaseServer.rpc('rpc_dime_sync_repartition', {
+      p_repartition_id: repartition.id,
+      p_transaction_entree_id: transactionEntreeId,
+      p_montant: montantFinal,
+      p_description: descriptionFinale,
+      p_date_operation: toDbTimestamp(dateOperationFinale),
+      p_mode_paiement: modePaiementFinal,
+      p_evenement_id: evenementIdFinal ?? null,
+      p_part_paroisse_mere: montants.partParoisseMere,
+      p_part_caisse_locale: montants.partCaisseLocale,
+      p_part_responsable: montants.partResponsable,
+      p_part_levites: montants.partLevites,
+      p_generated_description_base: generated.descriptionBase,
+      p_generated_paroisse_id: generated.paroisse?.id ?? null,
+      p_generated_responsable_id: generated.responsable?.id ?? null,
+      p_generated_levites_id: generated.levites?.id ?? null,
     });
+
+    if (syncError) {
+      throw new Error(`Echec synchronisation atomique RPC: ${syncError.message}`);
+    }
 
     await logger.log(
       'TITHES_UPDATED',
@@ -190,16 +182,16 @@ export class DimeService {
    */
   private async obtenirCategoriesDimes() {
     const [catEntree, catParoisse, catResponsable, catLevites] = await Promise.all([
-      prisma.categorie.findFirst({
+      supabaseDb.categorie.findFirst({
         where: { nom: NOM_CATEGORIE_ENTREE, type: 'ENTREE', actif: true },
       }),
-      prisma.categorie.findFirst({
+      supabaseDb.categorie.findFirst({
         where: { nom: NOM_CATEGORIE_PAROISSE_MERE, type: 'SORTIE', actif: true },
       }),
-      prisma.categorie.findFirst({
+      supabaseDb.categorie.findFirst({
         where: { nom: NOM_CATEGORIE_RESPONSABLE, type: 'SORTIE', actif: true },
       }),
-      prisma.categorie.findFirst({
+      supabaseDb.categorie.findFirst({
         where: { nom: NOM_CATEGORIE_LEVITES, type: 'SORTIE', actif: true },
       }),
     ]);
@@ -249,7 +241,7 @@ export class DimeService {
 
     // Verifier que l'evenement existe si fourni
     if (data.evenementId) {
-      const evenement = await prisma.evenement.findUnique({
+      const evenement = await supabaseDb.evenement.findUnique({
         where: { id: data.evenementId },
         select: { id: true, actif: true },
       });
@@ -266,84 +258,41 @@ export class DimeService {
 
     const dateOp =
       typeof data.dateOperation === 'string'
-        ? new Date(data.dateOperation)
+        ? parseDateInput(data.dateOperation)
         : data.dateOperation;
 
-    // Transaction atomique pour tout creer en une fois
-    const resultat = await prisma.$transaction(async (tx) => {
-      // 1) Creer la transaction ENTREE
-      const transactionEntree = await tx.transaction.create({
-        data: {
-          type: 'ENTREE',
-          montant: data.montant,
-          description: data.description ?? 'Dime recue',
-          dateOperation: dateOp,
-          modePaiement: data.modePaiement ?? null,
-          categorieId: categories.entree.id,
-          utilisateurId: createdById,
-          evenementId: data.evenementId ?? null,
-        },
-      });
+    const descriptionEntree = data.description ?? 'Dime recue';
+    const descriptionBase = 'Repartition - ';
 
-      // 2) Creer les 3 transactions SORTIE
-      const descriptionBase = `Repartition - `;
+    const { data: creationRpcRows, error: creationRpcError } = await supabaseServer.rpc(
+      'rpc_dime_create_repartition',
+      {
+        p_montant: data.montant,
+        p_description: descriptionEntree,
+        p_date_operation: toDbTimestamp(dateOp),
+        p_mode_paiement: data.modePaiement ?? null,
+        p_evenement_id: data.evenementId ?? null,
+        p_utilisateur_id: createdById,
+        p_categorie_entree_id: categories.entree.id,
+        p_categorie_paroisse_id: categories.paroisseMere.id,
+        p_categorie_responsable_id: categories.responsable.id,
+        p_categorie_levites_id: categories.levites.id,
+        p_part_paroisse_mere: montants.partParoisseMere,
+        p_part_caisse_locale: montants.partCaisseLocale,
+        p_part_responsable: montants.partResponsable,
+        p_part_levites: montants.partLevites,
+        p_description_base: descriptionBase,
+      }
+    );
 
-      const transParoisse = await tx.transaction.create({
-        data: {
-          type: 'SORTIE',
-          montant: montants.partParoisseMere,
-          description: `${descriptionBase} - Paroisse Mere`,
-          dateOperation: dateOp,
-          categorieId: categories.paroisseMere.id,
-          utilisateurId: createdById,
-          evenementId: data.evenementId ?? null,
-        },
-      });
+    if (creationRpcError) {
+      throw new Error(`Echec creation atomique RPC: ${creationRpcError.message}`);
+    }
 
-      const transResponsable = await tx.transaction.create({
-        data: {
-          type: 'SORTIE',
-          montant: montants.partResponsable,
-          description: `${descriptionBase} - Responsable`,
-          dateOperation: dateOp,
-          categorieId: categories.responsable.id,
-          utilisateurId: createdById,
-          evenementId: data.evenementId ?? null,
-        },
-      });
-
-      const transLevites = await tx.transaction.create({
-        data: {
-          type: 'SORTIE',
-          montant: montants.partLevites,
-          description: `${descriptionBase} - Levites`,
-          dateOperation: dateOp,
-          categorieId: categories.levites.id,
-          utilisateurId: createdById,
-          evenementId: data.evenementId ?? null,
-        },
-      });
-
-      // 3) Creer l'enregistrement RepartitionDime
-      const repartition = await tx.repartitionDime.create({
-        data: {
-          transactionId: transactionEntree.id,
-          totalDime: montants.totalDime,
-          partParoisseMere: montants.partParoisseMere,
-          partCaisseLocale: montants.partCaisseLocale,
-          partResponsable: montants.partResponsable,
-          partLevites: montants.partLevites,
-        },
-      });
-
-      return {
-        repartition,
-        transactionEntree,
-        transParoisse,
-        transResponsable,
-        transLevites,
-      };
-    });
+    const rpcPayload = Array.isArray(creationRpcRows) ? creationRpcRows[0] : null;
+    if (!rpcPayload) {
+      throw new Error('RPC creation dime: aucune donnee retournee');
+    }
 
     await logger.log(
       'TITHES_CREATED',
@@ -352,32 +301,32 @@ export class DimeService {
     );
 
     return {
-      id: resultat.repartition.id,
-      transactionId: resultat.transactionEntree.id,
+      id: rpcPayload.repartition_id,
+      transactionId: rpcPayload.transaction_entree_id,
       totalDime: montants.totalDime,
       partParoisseMere: montants.partParoisseMere,
       partCaisseLocale: montants.partCaisseLocale,
       partResponsable: montants.partResponsable,
       partLevites: montants.partLevites,
-      creeLe: resultat.repartition.creeLe,
+      creeLe: new Date(rpcPayload.repartition_cree_le),
       transactionEntree: {
-        id: resultat.transactionEntree.id,
-        montant: resultat.transactionEntree.montant,
-        description: resultat.transactionEntree.description,
-        dateOperation: resultat.transactionEntree.dateOperation,
+        id: rpcPayload.transaction_entree_id,
+        montant: data.montant,
+        description: descriptionEntree,
+        dateOperation: dateOp,
       },
       transactionsGeneres: {
         paroisseMere: {
-          id: resultat.transParoisse.id,
-          montant: resultat.transParoisse.montant,
+          id: rpcPayload.trans_paroisse_id,
+          montant: montants.partParoisseMere,
         },
         responsable: {
-          id: resultat.transResponsable.id,
-          montant: resultat.transResponsable.montant,
+          id: rpcPayload.trans_responsable_id,
+          montant: montants.partResponsable,
         },
         levites: {
-          id: resultat.transLevites.id,
-          montant: resultat.transLevites.montant,
+          id: rpcPayload.trans_levites_id,
+          montant: montants.partLevites,
         },
       },
     };
@@ -393,7 +342,7 @@ export class DimeService {
     }
 
     // Recuperer les transactions generees
-    const transactionsGeneres = await prisma.transaction.findMany({
+    const transactionsGeneres = await supabaseDb.transaction.findMany({
       where: {
         description: {
           contains: `Repartition - `,
@@ -403,9 +352,9 @@ export class DimeService {
       select: { id: true, montant: true, description: true },
     });
 
-    const paroisse = transactionsGeneres.find((t) => t.description?.includes('Paroisse Mere'));
-    const responsable = transactionsGeneres.find((t) => t.description?.includes('Responsable'));
-    const levites = transactionsGeneres.find((t) => t.description?.includes('Levites'));
+    const paroisse = transactionsGeneres.find((t: any) => t.description?.includes('Paroisse Mere'));
+    const responsable = transactionsGeneres.find((t: any) => t.description?.includes('Responsable'));
+    const levites = transactionsGeneres.find((t: any) => t.description?.includes('Levites'));
 
     return {
       ...repartition,
@@ -481,7 +430,7 @@ export class DimeService {
     // Enrichir chaque item avec les transactions generes
     const dataEnrichi = await Promise.all(
       resultBase.data.map(async (item) => {
-        const transactionsGeneres = await prisma.transaction.findMany({
+        const transactionsGeneres = await supabaseDb.transaction.findMany({
           where: {
             description: {
               contains: `Repartition - ${item.transactionId}`,
@@ -491,11 +440,11 @@ export class DimeService {
           select: { id: true, montant: true, description: true },
         });
 
-        const paroisse = transactionsGeneres.find((t) =>
+        const paroisse = transactionsGeneres.find((t: any) =>
           t.description?.includes('Paroisse Mere')
         );
-        const responsable = transactionsGeneres.find((t) => t.description?.includes('Responsable'));
-        const levites = transactionsGeneres.find((t) => t.description?.includes('Levites'));
+        const responsable = transactionsGeneres.find((t: any) => t.description?.includes('Responsable'));
+        const levites = transactionsGeneres.find((t: any) => t.description?.includes('Levites'));
 
         return {
           ...item,
@@ -528,39 +477,26 @@ export class DimeService {
       throw new Error(`Repartition avec l'ID ${id} introuvable`);
     }
 
-    // Retrouver les transactions generes
-    const transactionsGeneres = await prisma.transaction.findMany({
-      where: {
-        OR: [
-          { id: repartition.transactionId },
-          {
-            description: {
-              contains: `Repartition - `,
-            },
-          },
-        ],
-      },
+    const generated = await this.trouverTransactionsGenerees(repartition.transactionId);
+    const transactionIds = [
+      repartition.transactionId,
+      generated.paroisse?.id,
+      generated.responsable?.id,
+      generated.levites?.id,
+    ].filter((idValue): idValue is number => typeof idValue === 'number');
+
+    const { error: deleteRpcError } = await supabaseServer.rpc('rpc_dime_delete_repartition', {
+      p_repartition_id: id,
+      p_transaction_ids: transactionIds,
     });
 
-    // Supprimer en transaction atomique
-    await prisma.$transaction(async (tx) => {
-      // Supprimer la repartition d'abord (FK)
-      await tx.repartitionDime.delete({ where: { id } });
-
-      // Supprimer logiquement les transactions
-      await tx.transaction.updateMany({
-        where: {
-          id: {
-            in: transactionsGeneres.map((t) => t.id),
-          },
-        },
-        data: { estSupprime: true },
-      });
-    });
+    if (deleteRpcError) {
+      throw new Error(`Echec suppression atomique RPC: ${deleteRpcError.message}`);
+    }
 
     await logger.log(
       'TITHES_DELETED',
-      `Repartition dime supprimee (ID ${id}, ${transactionsGeneres.length} transactions)`,
+      `Repartition dime supprimee (ID ${id}, ${transactionIds.length} transactions)`,
       deletedById
     );
 

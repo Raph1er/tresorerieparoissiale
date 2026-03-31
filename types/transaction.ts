@@ -3,7 +3,7 @@
  * Définit les structures de données pour les opérations financières de la paroisse.
  */
 
-import { TypeTransaction } from '@prisma/client';
+import { TypeTransaction } from './enums';
 
 /**
  * DTO pour créer une transaction.
@@ -50,7 +50,7 @@ export interface TransactionResponseDTO {
   estSupprime: boolean;
   creeLe: Date;
   modifieLe: Date | null;
-  
+
   // Relations
   categorieId: number | null;
   categorie: {
@@ -58,14 +58,14 @@ export interface TransactionResponseDTO {
     nom: string;
     type: TypeTransaction;
   } | null;
-  
+
   utilisateurId: number;
   utilisateur: {
     id: number;
     nom: string;
     email: string;
   };
-  
+
   evenementId: number | null;
   evenement: {
     id: number;

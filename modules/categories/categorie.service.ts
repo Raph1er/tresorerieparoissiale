@@ -3,7 +3,7 @@
  * Il applique les règles métier avant d'appeler le repository.
  */
 
-import { TypeTransaction } from '@prisma/client';
+import { TypeTransaction } from '@/types/enums';
 import logger from '@/lib/logger';
 import { categorieRepository } from './categorie.repository';
 import {

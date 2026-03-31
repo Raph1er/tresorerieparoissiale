@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ApiError, fetchWithAuth } from "@/lib/api-client";
 import { getAuthUser } from "@/lib/client-auth";
+import { getNowDateTimeInputValue, toDateTimeLocalInputValue } from "@/utils/date";
 import {
   AlertCircle,
   ArrowDownRight,
@@ -129,32 +130,6 @@ function formatDate(value: string): string {
     month: "short",
     year: "numeric",
   });
-}
-
-function toDateTimeLocalInputValue(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return "";
-  }
-
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  const h = String(date.getHours()).padStart(2, "0");
-  const min = String(date.getMinutes()).padStart(2, "0");
-  const s = String(date.getSeconds()).padStart(2, "0");
-  return `${y}-${m}-${d}T${h}:${min}:${s}`;
-}
-
-function getNowDateTimeInputValue(): string {
-  const date = new Date();
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  const h = String(date.getHours()).padStart(2, "0");
-  const min = String(date.getMinutes()).padStart(2, "0");
-  const s = String(date.getSeconds()).padStart(2, "0");
-  return `${y}-${m}-${d}T${h}:${min}:${s}`;
 }
 
 export default function DashboardTransactionsPage() {

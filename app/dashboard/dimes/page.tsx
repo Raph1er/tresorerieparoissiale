@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { getNowDateTimeInputValue, toDateTimeLocalInputValue } from "@/utils/date";
 import {
   AlertCircle,
   ArrowRight,
@@ -218,32 +219,6 @@ function normalizeDime(item: RepartitionDimeResponseDTO): DimeListItem {
     partResponsable: item.partResponsable,
     partLevites: item.partLevites,
   };
-}
-
-function getNowDateTimeInputValue(): string {
-  const date = new Date();
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  const h = String(date.getHours()).padStart(2, "0");
-  const min = String(date.getMinutes()).padStart(2, "0");
-  const s = String(date.getSeconds()).padStart(2, "0");
-  return `${y}-${m}-${d}T${h}:${min}:${s}`;
-}
-
-function toDateTimeLocalInputValue(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return "";
-  }
-
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  const h = String(date.getHours()).padStart(2, "0");
-  const min = String(date.getMinutes()).padStart(2, "0");
-  const s = String(date.getSeconds()).padStart(2, "0");
-  return `${y}-${m}-${d}T${h}:${min}:${s}`;
 }
 
 export default function DashboardDimesPage() {

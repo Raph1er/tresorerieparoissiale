@@ -2,8 +2,8 @@
  * Repository pour les repartitions de dimes.
  */
 
-import prisma from '@/lib/prisma';
-import { Prisma, TypeTransaction } from '@prisma/client';
+import supabaseDb from '@/lib/supabase-db';
+import { TypeTransaction } from '@/types/enums';
 import type {
   PaginatedResponse,
   PaginationOptions,
@@ -73,13 +73,13 @@ export class DimeRepository {
         dateOperation: true,
       },
     },
-  } satisfies Prisma.RepartitionDimeSelect;
+  } as const;
 
   async create(
     transactionId: number,
     montants: RepartitionMontants
   ): Promise<RepartitionDimeResponseDTO> {
-    const created = await prisma.repartitionDime.create({
+    const created = await supabaseDb.repartitionDime.create({
       data: {
         transactionId,
         totalDime: montants.totalDime,
@@ -95,7 +95,7 @@ export class DimeRepository {
   }
 
   async findById(id: number): Promise<RepartitionDimeResponseDTO | null> {
-    const item = await prisma.repartitionDime.findUnique({
+    const item = await supabaseDb.repartitionDime.findUnique({
       where: { id },
       select: this.selectRepartition,
     });
@@ -110,7 +110,7 @@ export class DimeRepository {
   async findByTransactionId(
     transactionId: number
   ): Promise<RepartitionDimeResponseDTO | null> {
-    const item = await prisma.repartitionDime.findUnique({
+    const item = await supabaseDb.repartitionDime.findUnique({
       where: { transactionId },
       select: this.selectRepartition,
     });
@@ -126,7 +126,7 @@ export class DimeRepository {
     pagination: PaginationOptions,
     filters: RepartitionDimeFilter
   ): Promise<PaginatedResponse<RepartitionDimeResponseDTO>> {
-    const where: Prisma.RepartitionDimeWhereInput = {};
+    const where: any = {};
 
     if (filters.transactionId) {
       where.transactionId = filters.transactionId;
@@ -142,7 +142,7 @@ export class DimeRepository {
       }
     }
 
-    const orderBy: Prisma.RepartitionDimeOrderByWithRelationInput = {};
+    const orderBy: any = {};
     if (filters.orderBy) {
       orderBy[filters.orderBy] = filters.order ?? 'desc';
     } else {
@@ -152,18 +152,18 @@ export class DimeRepository {
     const skip = (pagination.page - 1) * pagination.limit;
 
     const [items, total] = await Promise.all([
-      prisma.repartitionDime.findMany({
+      supabaseDb.repartitionDime.findMany({
         where,
         select: this.selectRepartition,
         orderBy,
         skip,
         take: pagination.limit,
       }),
-      prisma.repartitionDime.count({ where }),
+      supabaseDb.repartitionDime.count({ where }),
     ]);
 
     return {
-      data: items.map((item) => versRepartitionDTO(item as RepartitionDbPayload)),
+      data: items.map((item: any) => versRepartitionDTO(item as RepartitionDbPayload)),
       pagination: {
         page: pagination.page,
         limit: pagination.limit,
@@ -174,7 +174,7 @@ export class DimeRepository {
   }
 
   async delete(id: number): Promise<RepartitionDimeResponseDTO> {
-    const item = await prisma.repartitionDime.delete({
+    const item = await supabaseDb.repartitionDime.delete({
       where: { id },
       select: this.selectRepartition,
     });

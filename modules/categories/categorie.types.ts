@@ -3,7 +3,7 @@
  * Ces structures sont partagées entre routes, service et repository.
  */
 
-import { TypeTransaction } from '@prisma/client';
+import { TypeTransaction } from '@/types/enums';
 
 /**
  * Données requises pour créer une catégorie.

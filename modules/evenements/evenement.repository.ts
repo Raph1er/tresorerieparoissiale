@@ -3,8 +3,7 @@
  * Cette couche centralise toutes les requêtes Prisma.
  */
 
-import prisma from '@/lib/prisma';
-import { Prisma } from '@prisma/client';
+import supabaseDb from '@/lib/supabase-db';
 import {
   CreateEvenementDTO,
   EvenementFilter,
@@ -60,13 +59,13 @@ export class EvenementRepository {
         transactions: true,
       },
     },
-  } satisfies Prisma.EvenementSelect;
+  } as const;
 
   /**
    * Crée un nouvel évènement.
    */
   async create(data: CreateEvenementDTO): Promise<EvenementResponseDTO> {
-    const evenement = await prisma.evenement.create({
+    const evenement = await supabaseDb.evenement.create({
       data: {
         nom: data.nom,
         description: data.description ?? null,
@@ -84,9 +83,9 @@ export class EvenementRepository {
    * Récupère un évènement par son ID.
    */
   async findById(id: number, includeInactive = true): Promise<EvenementResponseDTO | null> {
-    const where: Prisma.EvenementWhereUniqueInput = { id };
+    const where: any = { id };
 
-    const evenement = await prisma.evenement.findUnique({
+    const evenement = await supabaseDb.evenement.findUnique({
       where,
       select: this.selectEvenement,
     });
@@ -106,7 +105,7 @@ export class EvenementRepository {
    * Met à jour un évènement existant.
    */
   async update(id: number, data: UpdateEvenementDTO): Promise<EvenementResponseDTO> {
-    const updateData: Prisma.EvenementUpdateInput = {};
+    const updateData: any = {};
 
     if (data.nom !== undefined) updateData.nom = data.nom;
     if (data.description !== undefined) updateData.description = data.description;
@@ -116,7 +115,7 @@ export class EvenementRepository {
     }
     if (data.actif !== undefined) updateData.actif = data.actif;
 
-    const evenement = await prisma.evenement.update({
+    const evenement = await supabaseDb.evenement.update({
       where: { id },
       data: updateData,
       select: this.selectEvenement,
@@ -129,7 +128,7 @@ export class EvenementRepository {
    * Désactive un évènement (suppression logique).
    */
   async delete(id: number): Promise<EvenementResponseDTO> {
-    const evenement = await prisma.evenement.update({
+    const evenement = await supabaseDb.evenement.update({
       where: { id },
       data: {
         actif: false,
@@ -147,7 +146,7 @@ export class EvenementRepository {
     options: PaginationOptions,
     filters?: EvenementFilter
   ): Promise<PaginatedResponse<EvenementResponseDTO>> {
-    const where: Prisma.EvenementWhereInput = {};
+    const where: any = {};
 
     // Filtre textuel sur le nom et la description.
     if (filters?.search) {
@@ -182,15 +181,15 @@ export class EvenementRepository {
       ];
     }
 
-    const total = await prisma.evenement.count({ where });
+    const total = await supabaseDb.evenement.count({ where });
     const totalPages = Math.ceil(total / options.limit) || 1;
     const skip = (options.page - 1) * options.limit;
 
-    const orderBy: Prisma.EvenementOrderByWithRelationInput = {
+    const orderBy: any = {
       [options.orderBy ?? 'dateDebut']: options.order ?? 'desc',
     };
 
-    const evenements = await prisma.evenement.findMany({
+    const evenements = await supabaseDb.evenement.findMany({
       where,
       select: this.selectEvenement,
       skip,
@@ -199,7 +198,7 @@ export class EvenementRepository {
     });
 
     return {
-      data: evenements.map((evenement) => versEvenementResponseDTO(evenement as EvenementDbPayload)),
+      data: evenements.map((evenement: any) => versEvenementResponseDTO(evenement as EvenementDbPayload)),
       page: options.page,
       total,
       totalPages,
@@ -213,7 +212,7 @@ export class EvenementRepository {
    * Vérifie si un nom d'évènement existe déjà.
    */
   async nomExists(nom: string, exceptId?: number): Promise<boolean> {
-    const where: Prisma.EvenementWhereInput = {
+    const where: any = {
       nom,
     };
 
@@ -221,7 +220,7 @@ export class EvenementRepository {
       where.id = { not: exceptId };
     }
 
-    const count = await prisma.evenement.count({ where });
+    const count = await supabaseDb.evenement.count({ where });
     return count > 0;
   }
 
@@ -229,7 +228,7 @@ export class EvenementRepository {
    * Vérifie si un évènement est utilisé par des transactions.
    */
   async isUsedByTransactions(id: number): Promise<boolean> {
-    const count = await prisma.transaction.count({
+    const count = await supabaseDb.transaction.count({
       where: {
         evenementId: id,
         estSupprime: false,
@@ -243,7 +242,7 @@ export class EvenementRepository {
    * Compte les évènements actifs.
    */
   async countActifs(): Promise<number> {
-    return prisma.evenement.count({
+    return supabaseDb.evenement.count({
       where: {
         actif: true,
       },

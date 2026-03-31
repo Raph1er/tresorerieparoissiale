@@ -4,7 +4,7 @@
  * Utilisé pour la traçabilité et la conformité
  */
 
-import prisma from './prisma';
+import supabaseDb from './supabase-db';
 
 /**
  * Types d'actions pouvant être loggées
@@ -79,7 +79,7 @@ class Logger {
 
       // Crée un enregistrement dans la table JournalAction
       // Cet enregistrement sera utilisé pour l'audit
-      await prisma.journalAction.create({
+      await supabaseDb.journalAction.create({
         data: {
           // ID de l'utilisateur authentifié ou identifié
           utilisateurId: userId,

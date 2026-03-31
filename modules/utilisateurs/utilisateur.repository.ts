@@ -4,8 +4,8 @@
  * Pattern Repository pour l'abstraction de la couche données
  */
 
-import prisma from '@/lib/prisma';
-import { RoleUtilisateur } from '@prisma/client';
+import supabaseDb from '@/lib/supabase-db';
+import { RoleUtilisateur } from '@/types/enums';
 import {
   CreateUtilisateurDTO,
   UpdateUtilisateurDTO,
@@ -27,7 +27,7 @@ export class UtilisateurRepository {
    */
   async create(data: CreateUtilisateurDTO & { motDePasse: string }) {
     // Crée un nouvel enregistrement dans la table utilisateur
-    return prisma.utilisateur.create({
+    return supabaseDb.utilisateur.create({
       data: {
         // Nom complet
         nom: data.nom,
@@ -62,7 +62,7 @@ export class UtilisateurRepository {
    */
   async findById(id: number) {
     // Recherche l'utilisateur par ID
-    return prisma.utilisateur.findUnique({
+    return supabaseDb.utilisateur.findUnique({
       where: { id },
       // Exclut le mot de passe
       select: {
@@ -86,7 +86,7 @@ export class UtilisateurRepository {
    */
   async findByEmail(email: string) {
     // Recherche l'utilisateur par email (sensible à la casse)
-    return prisma.utilisateur.findUnique({
+    return supabaseDb.utilisateur.findUnique({
       where: { email: email.toLowerCase() },
       // Inclut le mot de passe pour la vérification
       select: {
@@ -133,7 +133,7 @@ export class UtilisateurRepository {
     }
 
     // Met à jour l'utilisateur en base de données
-    return prisma.utilisateur.update({
+    return supabaseDb.utilisateur.update({
       where: { id },
       data: updateData,
       // Exclut le mot de passe
@@ -158,7 +158,7 @@ export class UtilisateurRepository {
    */
   async delete(id: number) {
     // Désactive l'utilisateur (suppression logique)
-    return prisma.utilisateur.update({
+    return supabaseDb.utilisateur.update({
       where: { id },
       data: {
         // Marque comme inactif
@@ -221,7 +221,7 @@ export class UtilisateurRepository {
     }
 
     // Compte le nombre total d'utilisateurs correspondant aux critères
-    const total = await prisma.utilisateur.count({ where });
+    const total = await supabaseDb.utilisateur.count({ where });
 
     // Calcule le nombre total de pages
     const totalPages = Math.ceil(total / options.limit);
@@ -235,7 +235,7 @@ export class UtilisateurRepository {
     orderBy[orderField] = options.order || 'desc';
 
     // Récupère les utilisateurs avec pagination
-    const utilisateurs = await prisma.utilisateur.findMany({
+    const utilisateurs = await supabaseDb.utilisateur.findMany({
       where,
       select: {
         id: true,
@@ -275,7 +275,7 @@ export class UtilisateurRepository {
    */
   async findByRole(role: RoleUtilisateur) {
     // Récupère tous les utilisateurs du rôle spécifié
-    return prisma.utilisateur.findMany({
+    return supabaseDb.utilisateur.findMany({
       where: { role },
       select: {
         id: true,
@@ -308,7 +308,7 @@ export class UtilisateurRepository {
     }
 
     // Compte les utilisateurs avec cet email
-    const count = await prisma.utilisateur.count({ where });
+    const count = await supabaseDb.utilisateur.count({ where });
 
     // Retourne true s'il y en a au moins un
     return count > 0;
@@ -321,7 +321,7 @@ export class UtilisateurRepository {
    */
   async count(): Promise<number> {
     // Compte tous les utilisateurs
-    return prisma.utilisateur.count();
+    return supabaseDb.utilisateur.count();
   }
 
   /**
@@ -331,7 +331,7 @@ export class UtilisateurRepository {
    */
   async countByRole(): Promise<Record<RoleUtilisateur, number>> {
     // Utilise groupBy pour compter par rôle
-    const result = await prisma.utilisateur.groupBy({
+    const result = await supabaseDb.utilisateur.groupBy({
       by: ['role'],
       _count: true,
     });
@@ -340,7 +340,7 @@ export class UtilisateurRepository {
     const roleCount: any = {};
 
     // Peuple l'objet avec les résultats
-    result.forEach((r) => {
+    result.forEach((r: any) => {
       roleCount[r.role] = r._count;
     });
 

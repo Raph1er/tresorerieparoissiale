@@ -5,7 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import supabaseDb from '@/lib/supabase-db';
 import { verifierMotDePasse, genererToken } from '@/lib/auth';
 import logger from '@/lib/logger';
 
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     // Recherche l'utilisateur en base de données par son email
     // La recherche est sensible à la casse
-    const utilisateur = await prisma.utilisateur.findUnique({
+    const utilisateur = await supabaseDb.utilisateur.findUnique({
       where: { email },
     });
 

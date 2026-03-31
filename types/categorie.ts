@@ -3,7 +3,7 @@
  * Ils servent côté interface pour consommer l'API sans dupliquer les structures.
  */
 
-import { TypeTransaction } from '@prisma/client';
+import { TypeTransaction } from './enums';
 
 /**
  * Résumé léger d'une catégorie parent.

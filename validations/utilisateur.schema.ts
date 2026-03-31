@@ -3,7 +3,7 @@
  * Centralise la validation des payloads et query params.
  */
 
-import { RoleUtilisateur } from '@prisma/client';
+import { RoleUtilisateur } from '@/types/enums';
 import {
 	CreateUtilisateurDTO,
 	PaginationOptions,

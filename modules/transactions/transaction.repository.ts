@@ -3,8 +3,8 @@
  * Cette couche centralise toutes les requêtes Prisma du module.
  */
 
-import prisma from '@/lib/prisma';
-import { Prisma, TypeTransaction } from '@prisma/client';
+import supabaseDb from '@/lib/supabase-db';
+import { TypeTransaction } from '@/types/enums';
 import {
     TransactionFilter,
     TransactionResponseDTO,
@@ -109,7 +109,7 @@ export class TransactionRepository {
                 nom: true,
             },
         },
-    } satisfies Prisma.TransactionSelect;
+    } as const;
 
     /**
      * Crée une nouvelle transaction.
@@ -118,7 +118,7 @@ export class TransactionRepository {
         data: CreateTransactionDTO,
         utilisateurId: number
     ): Promise<TransactionResponseDTO> {
-        const transaction = await prisma.transaction.create({
+        const transaction = await supabaseDb.transaction.create({
             data: {
                 type: data.type,
                 montant: data.montant,
@@ -146,7 +146,7 @@ export class TransactionRepository {
         pagination: PaginationOptions,
         filters: TransactionFilter
     ): Promise<PaginatedResponse<TransactionResponseDTO>> {
-        const where: Prisma.TransactionWhereInput = {};
+        const where: any = {};
 
         // Filtre par type
         if (filters.type) {
@@ -206,7 +206,7 @@ export class TransactionRepository {
         }
 
         // Tri
-        const orderBy: Prisma.TransactionOrderByWithRelationInput = {};
+        const orderBy: any = {};
         if (filters.orderBy) {
             orderBy[filters.orderBy] = filters.order ?? 'desc';
         } else {
@@ -219,18 +219,18 @@ export class TransactionRepository {
 
         // Requêtes en parallèle
         const [transactions, total] = await Promise.all([
-            prisma.transaction.findMany({
+            supabaseDb.transaction.findMany({
                 where,
                 select: this.selectTransaction,
                 orderBy,
                 skip,
                 take: pagination.limit,
             }),
-            prisma.transaction.count({ where }),
+            supabaseDb.transaction.count({ where }),
         ]);
 
         return {
-            data: transactions.map((t) => versTransactionResponseDTO(t as TransactionDbPayload)),
+            data: transactions.map((t: any) => versTransactionResponseDTO(t as TransactionDbPayload)),
             pagination: {
                 page: pagination.page,
                 limit: pagination.limit,
@@ -244,7 +244,7 @@ export class TransactionRepository {
      * Récupère une transaction par son ID.
      */
     async findById(id: number): Promise<TransactionResponseDTO | null> {
-        const transaction = await prisma.transaction.findUnique({
+        const transaction = await supabaseDb.transaction.findUnique({
             where: { id },
             select: this.selectTransaction,
         });
@@ -258,7 +258,7 @@ export class TransactionRepository {
      * Met à jour une transaction.
      */
     async update(id: number, data: UpdateTransactionDTO): Promise<TransactionResponseDTO> {
-        const updateData: Prisma.TransactionUpdateInput = {};
+        const updateData: any = {};
 
         if (data.type !== undefined) updateData.type = data.type;
         if (data.montant !== undefined) updateData.montant = data.montant;
@@ -296,7 +296,7 @@ export class TransactionRepository {
         }
         if (data.estSupprime !== undefined) updateData.estSupprime = data.estSupprime;
 
-        const transaction = await prisma.transaction.update({
+        const transaction = await supabaseDb.transaction.update({
             where: { id },
             data: updateData,
             select: this.selectTransaction,
@@ -309,7 +309,7 @@ export class TransactionRepository {
      * Suppression logique d'une transaction.
      */
     async softDelete(id: number): Promise<TransactionResponseDTO> {
-        const transaction = await prisma.transaction.update({
+        const transaction = await supabaseDb.transaction.update({
             where: { id },
             data: { estSupprime: true },
             select: this.selectTransaction,
@@ -322,7 +322,7 @@ export class TransactionRepository {
      * Vérifie si une transaction a déjà une répartition de dîme.
      */
     async hasRepartitionDime(id: number): Promise<boolean> {
-        const count = await prisma.repartitionDime.count({
+        const count = await supabaseDb.repartitionDime.count({
             where: { transactionId: id },
         });
         return count > 0;
@@ -333,7 +333,7 @@ export class TransactionRepository {
      * Utile pour les rapports financiers.
      */
     async sumMontant(filters: TransactionFilter): Promise<number> {
-        const where: Prisma.TransactionWhereInput = {};
+        const where: any = {};
 
         if (filters.type) where.type = filters.type;
         if (filters.categorieId) where.categorieId = filters.categorieId;
@@ -350,7 +350,7 @@ export class TransactionRepository {
             where.estSupprime = false;
         }
 
-        const result = await prisma.transaction.aggregate({
+        const result = await supabaseDb.transaction.aggregate({
             where,
             _sum: {
                 montant: true,

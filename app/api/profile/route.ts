@@ -10,7 +10,7 @@ import { utilisateurService } from '@/modules/utilisateurs/utilisateur.service';
 import { validerUpdateProfileDTO } from '@/validations/profile.schema';
 import logger from '@/lib/logger';
 import { hasherMotDePasse, verifierMotDePasse } from '@/lib/auth';
-import prisma from '@/lib/prisma';
+import supabaseDb from '@/lib/supabase-db';
 
 /**
  * GET /api/profile
@@ -72,7 +72,7 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
 
         if (donnees.motDePasseActuel && donnees.motDePasseNouveau) {
             // Récupère l'utilisateur avec le password depuis la base de données
-            const utilisateur = await prisma.utilisateur.findUnique({
+            const utilisateur = await supabaseDb.utilisateur.findUnique({
                 where: { id: contexte.userId },
                 select: { motDePasse: true },
             });
@@ -115,7 +115,7 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
 
         // Si le password a changé, le mettre à jour directement (déjà hashé à l'étape 3)
         if (donnees.motDePasseNouveau) {
-            await prisma.utilisateur.update({
+            await supabaseDb.utilisateur.update({
                 where: { id: contexte.userId },
                 data: { motDePasse: donnees.motDePasseNouveau },
             });

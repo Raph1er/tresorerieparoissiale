@@ -15,7 +15,7 @@ import {
   UtilisateurResponseDTO,
   PaginatedResponse,
 } from './utilisateur.types';
-import { RoleUtilisateur } from '@prisma/client';
+import { RoleUtilisateur } from '@/types/enums';
 
 /**
  * Classe Service pour les opérations métier sur les utilisateurs
