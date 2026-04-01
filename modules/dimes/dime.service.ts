@@ -17,10 +17,10 @@ import type {
   UpdateRepartitionDimeDTO,
 } from './dime.types';
 
-const NOM_CATEGORIE_ENTREE = 'Dîmes Décaissée';
-const NOM_CATEGORIE_PAROISSE_MERE = 'Vers la Paroisse Mère';
-const NOM_CATEGORIE_RESPONSABLE = 'Dîmes au Chargé';
-const NOM_CATEGORIE_LEVITES = 'Dîmes aux Lévites';
+const NOM_CATEGORIE_ENTREE = 'Dîme totale Décaissée';
+const NOM_CATEGORIE_PAROISSE_MERE = 'Dîme la Paroisse Mère';
+const NOM_CATEGORIE_RESPONSABLE = 'Dîme au Chargé';
+const NOM_CATEGORIE_LEVITES = 'Dîme aux Lévites';
 
 function parseDateInput(value: Date | string): Date {
   if (value instanceof Date) {
