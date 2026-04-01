@@ -18,7 +18,7 @@ import type {
 } from './dime.types';
 
 const NOM_CATEGORIE_ENTREE = 'Dîme totale Décaissée';
-const NOM_CATEGORIE_PAROISSE_MERE = 'Dîme la Paroisse Mère';
+const NOM_CATEGORIE_PAROISSE_MERE = 'Dîme pour Paroisse Mère';
 const NOM_CATEGORIE_RESPONSABLE = 'Dîme au Chargé';
 const NOM_CATEGORIE_LEVITES = 'Dîme aux Lévites';
 
