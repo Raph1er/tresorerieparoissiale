@@ -194,8 +194,8 @@ function formatMoney(value: number): string {
     style: "currency",
     currency: "XOF",
     minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(Math.round(value));
+    maximumFractionDigits: Number.isInteger(value) ? 0 : 2,
+  }).format(value);
 }
 
 function formatDate(value: string): string {
@@ -645,7 +645,7 @@ export default function DashboardDimesPage() {
                 <input
                   type="number"
                   min={1}
-                  step="0.01"
+                  step="1"
                   required
                   value={form.montant}
                   onChange={(e) => setForm((current) => ({ ...current, montant: e.target.value }))}

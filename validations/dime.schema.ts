@@ -65,10 +65,10 @@ export function validerCreateRepartitionDimeDTO(
 
   // Montant requis
   const montant = typeof data.montant === 'number' ? data.montant : null;
-  if (montant === null || montant <= 0) {
+  if (montant === null || montant <= 0 || !Number.isInteger(montant)) {
     return {
       success: false,
-      error: 'Le champ "montant" est requis et doit etre un nombre positif',
+      error: 'Le champ "montant" est requis et doit etre un entier positif (FCFA)',
     };
   }
 
@@ -136,10 +136,10 @@ export function validerUpdateRepartitionDimeDTO(
   const updates: UpdateRepartitionDimeDTO = {};
 
   if (data.montant !== undefined) {
-    if (typeof data.montant !== 'number' || data.montant <= 0) {
+    if (typeof data.montant !== 'number' || data.montant <= 0 || !Number.isInteger(data.montant)) {
       return {
         success: false,
-        error: 'Le champ "montant" doit etre un nombre positif',
+        error: 'Le champ "montant" doit etre un entier positif (FCFA)',
       };
     }
     updates.montant = data.montant;
