@@ -34,21 +34,7 @@ function parserDate(value: unknown): Date | null {
   }
 
   if (typeof value === 'string') {
-    const dateOnlyPattern = /^\d{4}-\d{2}-\d{2}$/;
-    if (dateOnlyPattern.test(value)) {
-      const [year, month, day] = value.split('-').map(Number);
-      const now = new Date();
-      return new Date(
-        year,
-        month - 1,
-        day,
-        now.getHours(),
-        now.getMinutes(),
-        now.getSeconds(),
-        now.getMilliseconds()
-      );
-    }
-
+    // Support both ISO 8601 UTC format and local datetime format
     const parsed = new Date(value);
     return Number.isNaN(parsed.getTime()) ? null : parsed;
   }
@@ -57,7 +43,15 @@ function parserDate(value: unknown): Date | null {
 }
 
 function estDateDansLeFutur(date: Date): boolean {
-  return date.getTime() > Date.now();
+  // Compare only the UTC dates (ignoring time) to avoid timezone issues
+  // between client and server
+  const dateUtc = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  const todayUtc = new Date(Date.UTC(
+    new Date().getUTCFullYear(),
+    new Date().getUTCMonth(),
+    new Date().getUTCDate()
+  ));
+  return dateUtc.getTime() > todayUtc.getTime();
 }
 
 export function validerCreateRepartitionDimeDTO(

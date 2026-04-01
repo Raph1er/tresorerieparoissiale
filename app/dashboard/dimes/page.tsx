@@ -339,6 +339,11 @@ export default function DashboardDimesPage() {
     setSuccessMessage(null);
 
     try {
+      // Convert local datetime to UTC ISO string before sending to server
+      const dateUtc = form.dateOperation
+        ? new Date(form.dateOperation).toISOString()
+        : new Date().toISOString();
+
       const payload: {
         montant: number;
         description?: string;
@@ -347,7 +352,7 @@ export default function DashboardDimesPage() {
         evenementId?: number;
       } = {
         montant: Number(form.montant),
-        dateOperation: form.dateOperation,
+        dateOperation: dateUtc,
       };
 
       if (form.description.trim()) {

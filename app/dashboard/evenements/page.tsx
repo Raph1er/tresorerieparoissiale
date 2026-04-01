@@ -235,11 +235,20 @@ export default function DashboardEvenementsPage() {
     setError(null);
     setSuccessMessage(null);
 
+    // Convert local dates to UTC ISO format
+    const dateDebutUtc = form.dateDebut
+      ? new Date(form.dateDebut + 'T00:00:00').toISOString()
+      : new Date().toISOString();
+
+    const dateFinUtc = form.dateFin
+      ? new Date(form.dateFin + 'T00:00:00').toISOString()
+      : null;
+
     const payload = {
       nom: form.nom.trim(),
       description: form.description.trim() || undefined,
-      dateDebut: form.dateDebut,
-      dateFin: form.dateFin || null,
+      dateDebut: dateDebutUtc,
+      dateFin: dateFinUtc,
       actif: form.actif,
     };
 
@@ -362,11 +371,10 @@ export default function DashboardEvenementsPage() {
                 key={option.value}
                 type="button"
                 onClick={() => handleStatusChange(option.value)}
-                className={`px-3 py-2 text-sm font-medium ${
-                  statusFilter === option.value
+                className={`px-3 py-2 text-sm font-medium ${statusFilter === option.value
                     ? "bg-primary text-white"
                     : "bg-transparent text-link dark:text-white"
-                }`}
+                  }`}
               >
                 {option.label}
               </button>
@@ -382,11 +390,10 @@ export default function DashboardEvenementsPage() {
                 key={option.value}
                 type="button"
                 onClick={() => handleTimelineChange(option.value)}
-                className={`px-3 py-2 text-sm font-medium ${
-                  timelineFilter === option.value
+                className={`px-3 py-2 text-sm font-medium ${timelineFilter === option.value
                     ? "bg-dark text-white dark:bg-primary"
                     : "bg-transparent text-link dark:text-white"
-                }`}
+                  }`}
               >
                 {option.label}
               </button>
@@ -467,13 +474,12 @@ export default function DashboardEvenementsPage() {
                     </td>
                     <td className="py-3 px-3 align-top">
                       <span
-                        className={`inline-flex rounded-lg px-2 py-1 text-xs font-semibold ${
-                          event.phase === "EN_COURS"
+                        className={`inline-flex rounded-lg px-2 py-1 text-xs font-semibold ${event.phase === "EN_COURS"
                             ? "bg-lightprimary text-primary"
                             : event.phase === "A_VENIR"
                               ? "bg-lightwarning text-warning"
                               : "bg-lightgray text-bodytext"
-                        }`}
+                          }`}
                       >
                         <span className="inline-flex items-center gap-1">
                           <Clock3 size={13} />
@@ -497,11 +503,10 @@ export default function DashboardEvenementsPage() {
                     <td className="py-3 px-3 align-top">
                       <div className="flex justify-end">
                         <span
-                          className={`inline-flex rounded-lg px-2 py-1 text-xs font-semibold ${
-                            event.actif
+                          className={`inline-flex rounded-lg px-2 py-1 text-xs font-semibold ${event.actif
                               ? "bg-lightsuccess text-success"
                               : "bg-lightwarning text-warning"
-                          }`}
+                            }`}
                         >
                           {event.actif ? "Actif" : "Inactif"}
                         </span>
