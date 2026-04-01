@@ -20,7 +20,11 @@ import NavItems from "./NavItems";
 import NavCollapse from "./NavCollapse";
 import Logo from "./Logo";
 
-const MobileSidebarContent = () => {
+interface MobileSidebarContentProps {
+  onNavigate?: () => void;
+}
+
+const MobileSidebarContent: React.FC<MobileSidebarContentProps> = ({ onNavigate }) => {
   return (
     <div>
       {/* Logo affiché en haut du tiroir */}
@@ -46,8 +50,8 @@ const MobileSidebarContent = () => {
                   {section.children?.map((child, childIndex) => (
                     <React.Fragment key={child.id ?? childIndex}>
                       {child.children
-                        ? <div className="collpase-items"><NavCollapse item={child} /></div>
-                        : <NavItems item={child} />
+                        ? <div className="collpase-items"><NavCollapse item={child} onNavigate={onNavigate} /></div>
+                        : <NavItems item={child} onNavigate={onNavigate} />
                       }
                     </React.Fragment>
                   ))}

@@ -141,8 +141,8 @@ const HeaderLayout = () => {
           ════════════════════════════════════════════════════════════════════ */}
       <header
         className={`sticky top-0 z-[5] transition-shadow ${isSticky
-            ? "bg-white dark:bg-dark shadow-md"  // ombre quand on a scrollé
-            : "bg-white dark:bg-darkgray"
+          ? "bg-white dark:bg-dark shadow-md"  // ombre quand on a scrollé
+          : "bg-white dark:bg-darkgray"
           }`}
       >
         <Navbar
@@ -246,7 +246,7 @@ const HeaderLayout = () => {
         className="w-[280px] p-0"
       >
         <Drawer.Items>
-          <MobileSidebarContent />
+          <MobileSidebarContent onNavigate={() => setMobileOpen(false)} />
         </Drawer.Items>
       </Drawer>
     </>

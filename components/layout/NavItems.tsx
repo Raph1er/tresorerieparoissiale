@@ -23,9 +23,10 @@ import { ChildItem } from "./SidebarItems";
 
 interface NavItemsProps {
   item: ChildItem;
+  onNavigate?: () => void;
 }
 
-const NavItems: React.FC<NavItemsProps> = ({ item }) => {
+const NavItems: React.FC<NavItemsProps> = ({ item, onNavigate }) => {
   // usePathname() retourne le chemin courant, ex: "/dashboard/transactions"
   // On compare avec l'URL de l'item pour détecter le lien actif
   const pathname = usePathname();
@@ -35,6 +36,7 @@ const NavItems: React.FC<NavItemsProps> = ({ item }) => {
     <Sidebar.Item
       href={item.url}   // Next.js Link utilise "href" (react-router utilisait "to")
       as={Link}         // flowbite délègue le rendu de l'<a> au composant Link de Next.js
+      onClick={onNavigate}
       className={
         isActive
           // Lien actif : fond violet, texte blanc, ombre

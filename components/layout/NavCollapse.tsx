@@ -23,9 +23,10 @@ import { CustomCollapse } from "./CustomCollapse";
 
 interface NavCollapseProps {
   item: ChildItem;
+  onNavigate?: () => void;
 }
 
-const NavCollapse: React.FC<NavCollapseProps> = ({ item }) => {
+const NavCollapse: React.FC<NavCollapseProps> = ({ item, onNavigate }) => {
   const pathname = usePathname();
 
   // Vérifie si un des sous-items correspond au chemin actuel.
@@ -56,9 +57,9 @@ const NavCollapse: React.FC<NavCollapseProps> = ({ item }) => {
           <React.Fragment key={child.id}>
             {child.children
               ? // Sous-groupe déroulant (récursif) si l'enfant a lui-même des enfants
-                <NavCollapse item={child} />
+              <NavCollapse item={child} onNavigate={onNavigate} />
               : // Lien simple sinon
-                <NavItems item={child} />
+              <NavItems item={child} onNavigate={onNavigate} />
             }
           </React.Fragment>
         ))}
