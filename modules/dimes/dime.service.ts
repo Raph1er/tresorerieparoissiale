@@ -19,7 +19,7 @@ import type {
 
 const NOM_CATEGORIE_ENTREE = 'Dîme totale Décaissée';
 const NOM_CATEGORIE_PAROISSE_MERE = 'Dîme pour Paroisse Mère';
-const NOM_CATEGORIE_RESPONSABLE = 'Dîme au Chargé';
+const NOM_CATEGORIE_RESPONSABLE = 'Dîme au Chargé paroissial';
 const NOM_CATEGORIE_LEVITES = 'Dîme aux Lévites';
 
 function parseDateInput(value: Date | string): Date {
