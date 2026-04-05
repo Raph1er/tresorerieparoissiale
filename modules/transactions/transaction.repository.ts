@@ -5,6 +5,7 @@
 
 import supabaseDb from '@/lib/supabase-db';
 import { TypeTransaction } from '@/types/enums';
+import { nettoyerDescriptionRepartition } from '@/utils/repartition-description';
 import {
     TransactionFilter,
     TransactionResponseDTO,
@@ -55,7 +56,10 @@ function versTransactionResponseDTO(transaction: TransactionDbPayload): Transact
         id: transaction.id,
         type: transaction.type,
         montant: transaction.montant,
-        description: transaction.description,
+        description: nettoyerDescriptionRepartition(
+            transaction.description,
+            transaction.categorie?.nom
+        ),
         dateOperation: transaction.dateOperation,
         modePaiement: transaction.modePaiement,
         pieceJustificative: transaction.pieceJustificative,

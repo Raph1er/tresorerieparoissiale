@@ -209,7 +209,8 @@ export default function DashboardRapportsPage() {
       String(index + 1),
       formatDate(row.dateOperation),
       row.type,
-      row.description || "Sans description",
+      // row.description || "Sans description",
+      row.description || "",
       row.categorie?.nom || "-",
       row.evenement?.nom || "-",
       row.modePaiement || "-",
@@ -681,8 +682,9 @@ export default function DashboardRapportsPage() {
                             {row.type}
                           </span>
                         </td>
-                        <td className="py-3 px-3 text-dark dark:text-white max-w-[260px] truncate border-r border-border/60 dark:border-darkborder/60" title={row.description || "Sans description"}>
-                          {row.description || "Sans description"}
+                        <td className="py-3 px-3 text-dark dark:text-white max-w-[260px] truncate border-r border-border/60 dark:border-darkborder/60" title={row.description || ""}>
+                          {/* {row.description || "Sans description"} */}
+                          {row.description || ""}
                         </td>
                         <td className="py-3 px-3 text-bodytext border-r border-border/60 dark:border-darkborder/60">{row.categorie?.nom || "-"}</td>
                         <td className="py-3 px-3 text-bodytext border-r border-border/60 dark:border-darkborder/60">{row.evenement?.nom || "-"}</td>

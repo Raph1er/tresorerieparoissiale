@@ -52,10 +52,6 @@ function toDbTimestamp(value: Date | string): string {
 }
 
 export class DimeService {
-  private construireDescriptionBase(transactionId: number): string {
-    return `Repartition - `;
-  }
-
   private async validerEvenementActif(evenementId: number | null | undefined): Promise<void> {
     if (evenementId === undefined || evenementId === null) {
       return;
@@ -71,25 +67,70 @@ export class DimeService {
     }
   }
 
-  private async trouverTransactionsGenerees(transactionEntreeId: number) {
-    const descriptionBase = this.construireDescriptionBase(transactionEntreeId);
-
-    const transactionsGeneres = await supabaseDb.transaction.findMany({
+  private async rechercherTransactionGeneree(
+    transactionEntree: { dateOperation: Date; utilisateurId: number; evenementId: number | null },
+    categorieId: number,
+    montant: number
+  ) {
+    const matches = await supabaseDb.transaction.findMany({
       where: {
-        description: {
-          contains: descriptionBase,
-        },
         type: 'SORTIE',
         estSupprime: false,
+        categorieId,
+        montant,
+        dateOperation: transactionEntree.dateOperation,
+        utilisateurId: transactionEntree.utilisateurId,
+        evenementId: transactionEntree.evenementId,
       },
-      select: { id: true, montant: true, description: true },
+      select: { id: true, montant: true },
+      skip: 0,
+      take: 1,
     });
 
+    return matches[0] ?? null;
+  }
+
+  private async trouverTransactionsGenerees(
+    transactionEntreeId: number,
+    repartition: Pick<RepartitionDimeResponseDTO, 'partParoisseMere' | 'partResponsable' | 'partLevites'>
+  ) {
+    const transactionEntree = await supabaseDb.transaction.findUnique({
+      where: { id: transactionEntreeId },
+      select: {
+        dateOperation: true,
+        utilisateurId: true,
+        evenementId: true,
+      },
+    });
+
+    if (!transactionEntree) {
+      throw new Error(`Transaction ENTREE de dime introuvable (ID ${transactionEntreeId})`);
+    }
+
+    const categories = await this.obtenirCategoriesDimes(false);
+
+    const [paroisse, responsable, levites] = await Promise.all([
+      this.rechercherTransactionGeneree(
+        transactionEntree,
+        categories.paroisseMere.id,
+        repartition.partParoisseMere
+      ),
+      this.rechercherTransactionGeneree(
+        transactionEntree,
+        categories.responsable.id,
+        repartition.partResponsable
+      ),
+      this.rechercherTransactionGeneree(
+        transactionEntree,
+        categories.levites.id,
+        repartition.partLevites
+      ),
+    ]);
+
     return {
-      descriptionBase,
-      paroisse: transactionsGeneres.find((t: any) => t.description?.includes('Paroisse Mere')),
-      responsable: transactionsGeneres.find((t: any) => t.description?.includes('Responsable')),
-      levites: transactionsGeneres.find((t: any) => t.description?.includes('Levites')),
+      paroisse,
+      responsable,
+      levites,
     };
   }
 
@@ -144,7 +185,7 @@ export class DimeService {
       data.evenementId !== undefined ? data.evenementId : transactionEntree.evenementId;
 
     const montants = calculerRepartitionDime(montantFinal);
-    const generated = await this.trouverTransactionsGenerees(transactionEntreeId);
+    const generated = await this.trouverTransactionsGenerees(transactionEntreeId, repartition);
 
     const { error: syncError } = await supabaseServer.rpc('rpc_dime_sync_repartition', {
       p_repartition_id: repartition.id,
@@ -158,7 +199,7 @@ export class DimeService {
       p_part_caisse_locale: montants.partCaisseLocale,
       p_part_responsable: montants.partResponsable,
       p_part_levites: montants.partLevites,
-      p_generated_description_base: generated.descriptionBase,
+      p_generated_description_base: 'Repartition',
       p_generated_paroisse_id: generated.paroisse?.id ?? null,
       p_generated_responsable_id: generated.responsable?.id ?? null,
       p_generated_levites_id: generated.levites?.id ?? null,
@@ -180,19 +221,35 @@ export class DimeService {
   /**
    * Recupere ou cree les categories systeme pour les dimes.
    */
-  private async obtenirCategoriesDimes() {
+  private async obtenirCategoriesDimes(exigerActif = true) {
     const [catEntree, catParoisse, catResponsable, catLevites] = await Promise.all([
       supabaseDb.categorie.findFirst({
-        where: { nom: NOM_CATEGORIE_ENTREE, type: 'ENTREE', actif: true },
+        where: {
+          nom: NOM_CATEGORIE_ENTREE,
+          type: 'ENTREE',
+          ...(exigerActif ? { actif: true } : {}),
+        },
       }),
       supabaseDb.categorie.findFirst({
-        where: { nom: NOM_CATEGORIE_PAROISSE_MERE, type: 'SORTIE', actif: true },
+        where: {
+          nom: NOM_CATEGORIE_PAROISSE_MERE,
+          type: 'SORTIE',
+          ...(exigerActif ? { actif: true } : {}),
+        },
       }),
       supabaseDb.categorie.findFirst({
-        where: { nom: NOM_CATEGORIE_RESPONSABLE, type: 'SORTIE', actif: true },
+        where: {
+          nom: NOM_CATEGORIE_RESPONSABLE,
+          type: 'SORTIE',
+          ...(exigerActif ? { actif: true } : {}),
+        },
       }),
       supabaseDb.categorie.findFirst({
-        where: { nom: NOM_CATEGORIE_LEVITES, type: 'SORTIE', actif: true },
+        where: {
+          nom: NOM_CATEGORIE_LEVITES,
+          type: 'SORTIE',
+          ...(exigerActif ? { actif: true } : {}),
+        },
       }),
     ]);
 
@@ -261,8 +318,9 @@ export class DimeService {
         ? parseDateInput(data.dateOperation)
         : data.dateOperation;
 
-    const descriptionEntree = data.description ?? 'Dime recue';
-    const descriptionBase = 'Repartition - ';
+    // const descriptionEntree = data.description ?? 'Dime recue';
+    const descriptionEntree = data.description?.trim() || null;
+    const descriptionBase = 'Repartition';
 
     const { data: creationRpcRows, error: creationRpcError } = await supabaseServer.rpc(
       'rpc_dime_create_repartition',
@@ -342,31 +400,27 @@ export class DimeService {
     }
 
     // Recuperer les transactions generees
-    const transactionsGeneres = await supabaseDb.transaction.findMany({
-      where: {
-        description: {
-          contains: `Repartition - `,
-        },
-        type: 'SORTIE',
-      },
-      select: { id: true, montant: true, description: true },
-    });
-
-    const paroisse = transactionsGeneres.find((t: any) => t.description?.includes('Paroisse Mere'));
-    const responsable = transactionsGeneres.find((t: any) => t.description?.includes('Responsable'));
-    const levites = transactionsGeneres.find((t: any) => t.description?.includes('Levites'));
+    const transactionsGeneres = await this.trouverTransactionsGenerees(
+      repartition.transactionId,
+      repartition
+    );
 
     return {
       ...repartition,
       transactionEntree: repartition.transactionEntree,
       transactionsGeneres: {
-        paroisseMere: paroisse
-          ? { id: paroisse.id, montant: paroisse.montant }
+        paroisseMere: transactionsGeneres.paroisse
+          ? { id: transactionsGeneres.paroisse.id, montant: transactionsGeneres.paroisse.montant }
           : { id: 0, montant: 0 },
-        responsable: responsable
-          ? { id: responsable.id, montant: responsable.montant }
+        responsable: transactionsGeneres.responsable
+          ? {
+            id: transactionsGeneres.responsable.id,
+            montant: transactionsGeneres.responsable.montant,
+          }
           : { id: 0, montant: 0 },
-        levites: levites ? { id: levites.id, montant: levites.montant } : { id: 0, montant: 0 },
+        levites: transactionsGeneres.levites
+          ? { id: transactionsGeneres.levites.id, montant: transactionsGeneres.levites.montant }
+          : { id: 0, montant: 0 },
       },
     };
   }
@@ -430,33 +484,24 @@ export class DimeService {
     // Enrichir chaque item avec les transactions generes
     const dataEnrichi = await Promise.all(
       resultBase.data.map(async (item) => {
-        const transactionsGeneres = await supabaseDb.transaction.findMany({
-          where: {
-            description: {
-              contains: `Repartition - ${item.transactionId}`,
-            },
-            type: 'SORTIE',
-          },
-          select: { id: true, montant: true, description: true },
-        });
-
-        const paroisse = transactionsGeneres.find((t: any) =>
-          t.description?.includes('Paroisse Mere')
-        );
-        const responsable = transactionsGeneres.find((t: any) => t.description?.includes('Responsable'));
-        const levites = transactionsGeneres.find((t: any) => t.description?.includes('Levites'));
+        const transactionsGeneres = await this.trouverTransactionsGenerees(item.transactionId, item);
 
         return {
           ...item,
           transactionEntree: item.transactionEntree,
           transactionsGeneres: {
-            paroisseMere: paroisse
-              ? { id: paroisse.id, montant: paroisse.montant }
+            paroisseMere: transactionsGeneres.paroisse
+              ? { id: transactionsGeneres.paroisse.id, montant: transactionsGeneres.paroisse.montant }
               : { id: 0, montant: 0 },
-            responsable: responsable
-              ? { id: responsable.id, montant: responsable.montant }
+            responsable: transactionsGeneres.responsable
+              ? {
+                id: transactionsGeneres.responsable.id,
+                montant: transactionsGeneres.responsable.montant,
+              }
               : { id: 0, montant: 0 },
-            levites: levites ? { id: levites.id, montant: levites.montant } : { id: 0, montant: 0 },
+            levites: transactionsGeneres.levites
+              ? { id: transactionsGeneres.levites.id, montant: transactionsGeneres.levites.montant }
+              : { id: 0, montant: 0 },
           },
         };
       })
@@ -477,7 +522,7 @@ export class DimeService {
       throw new Error(`Repartition avec l'ID ${id} introuvable`);
     }
 
-    const generated = await this.trouverTransactionsGenerees(repartition.transactionId);
+    const generated = await this.trouverTransactionsGenerees(repartition.transactionId, repartition);
     const transactionIds = [
       repartition.transactionId,
       generated.paroisse?.id,

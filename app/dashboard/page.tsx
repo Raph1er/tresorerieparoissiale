@@ -365,7 +365,8 @@ export default function DashboardPage() {
 
                     <div className="min-w-0">
                       <p className="font-semibold text-dark dark:text-white truncate">
-                        {tx.description || "Sans description"}
+                        {/* {tx.description || "Sans description"} */}
+                        {tx.description || ""}
                       </p>
                       <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-bodytext">
                         <span className="inline-flex items-center gap-1">

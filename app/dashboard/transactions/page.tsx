@@ -189,7 +189,8 @@ export default function DashboardTransactionsPage() {
         id: tx.id,
         type: tx.type,
         montant: tx.montant,
-        description: tx.description || "Sans description",
+        // description: tx.description || "Sans description",
+        description: tx.description || "",
         dateOperation: tx.dateOperation,
         modePaiement: tx.modePaiement || "Non précisé",
         categorieId: tx.categorie?.id ?? null,
@@ -286,7 +287,8 @@ export default function DashboardTransactionsPage() {
     setForm({
       type: item.type,
       montant: String(item.montant),
-      description: item.description === "Sans description" ? "" : item.description,
+      // description: item.description === "Sans description" ? "" : item.description,
+      description: item.description,
       dateOperation: toDateTimeLocalInputValue(item.dateOperation),
       modePaiement: item.modePaiement === "Non précisé" ? "" : item.modePaiement,
       referenceSelection: item.categorieId

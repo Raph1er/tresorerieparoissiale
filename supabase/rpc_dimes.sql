@@ -73,7 +73,7 @@ BEGIN
   VALUES (
     'SORTIE',
     p_part_paroisse_mere,
-    p_description_base || ' - Paroisse Mere',
+    COALESCE(NULLIF(TRIM(p_description_base), ''), 'Repartition'),
     p_date_operation,
     p_categorie_paroisse_id,
     p_utilisateur_id,
@@ -95,7 +95,7 @@ BEGIN
   VALUES (
     'SORTIE',
     p_part_responsable,
-    p_description_base || ' - Responsable',
+    COALESCE(NULLIF(TRIM(p_description_base), ''), 'Repartition'),
     p_date_operation,
     p_categorie_responsable_id,
     p_utilisateur_id,
@@ -117,7 +117,7 @@ BEGIN
   VALUES (
     'SORTIE',
     p_part_levites,
-    p_description_base || ' - Levites',
+    COALESCE(NULLIF(TRIM(p_description_base), ''), 'Repartition'),
     p_date_operation,
     p_categorie_levites_id,
     p_utilisateur_id,
@@ -191,7 +191,7 @@ BEGIN
       montant = p_part_paroisse_mere,
       date_operation = p_date_operation,
       evenement_id = p_evenement_id,
-      description = p_generated_description_base || ' - Paroisse Mere'
+      description = COALESCE(NULLIF(TRIM(p_generated_description_base), ''), 'Repartition')
     WHERE id = p_generated_paroisse_id;
   END IF;
 
@@ -201,7 +201,7 @@ BEGIN
       montant = p_part_responsable,
       date_operation = p_date_operation,
       evenement_id = p_evenement_id,
-      description = p_generated_description_base || ' - Responsable'
+      description = COALESCE(NULLIF(TRIM(p_generated_description_base), ''), 'Repartition')
     WHERE id = p_generated_responsable_id;
   END IF;
 
@@ -211,7 +211,7 @@ BEGIN
       montant = p_part_levites,
       date_operation = p_date_operation,
       evenement_id = p_evenement_id,
-      description = p_generated_description_base || ' - Levites'
+      description = COALESCE(NULLIF(TRIM(p_generated_description_base), ''), 'Repartition')
     WHERE id = p_generated_levites_id;
   END IF;
 

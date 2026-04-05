@@ -212,7 +212,8 @@ function normalizeDime(item: RepartitionDimeResponseDTO): DimeListItem {
     totalDime: item.totalDime,
     creeLe: String(item.creeLe),
     transactionId: item.transactionId,
-    transactionDescription: item.transactionEntree.description?.trim() || "Sans description",
+    // transactionDescription: item.transactionEntree.description?.trim() || "Sans description",
+    transactionDescription: item.transactionEntree.description?.trim() || "",
     transactionDate: String(item.transactionEntree.dateOperation),
     partParoisseMere: item.partParoisseMere,
     partCaisseLocale: item.partCaisseLocale,
@@ -323,7 +324,8 @@ export default function DashboardDimesPage() {
     setEditingDimeId(item.id);
     setForm({
       montant: String(item.totalDime),
-      description: item.transactionDescription === "Sans description" ? "" : item.transactionDescription,
+      // description: item.transactionDescription === "Sans description" ? "" : item.transactionDescription,
+      description: item.transactionDescription,
       dateOperation: toDateTimeLocalInputValue(item.transactionDate),
       modePaiement: "",
       evenementId: "",
@@ -373,7 +375,7 @@ export default function DashboardDimesPage() {
       });
 
       setSuccessMessage(
-        editingDimeId ? "Dîmes mise à jour avec succès." : "Nouveau Dîmes ajouté avec succès."
+        editingDimeId ? "Dîmes mise à jour avec succès." : "Nouvelle Dîme ajouté avec succès."
       );
       setIsCreateModalOpen(false);
       setEditingDimeId(null);
@@ -491,7 +493,7 @@ export default function DashboardDimesPage() {
               className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
             >
               <Plus size={15} />
-              Nouveau Dîme
+              Nouvelle Dîme
             </button>
           </div>
         </div>
@@ -744,7 +746,8 @@ export default function DashboardDimesPage() {
                       {formatMoney(selectedDime.totalDime)}
                     </p>
                     <p className="mt-2 text-sm text-bodytext">
-                      {selectedDime.transactionEntree.description || "Sans description"}
+                      {/* {selectedDime.transactionEntree.description || "Sans description"} */}
+                      {selectedDime.transactionEntree.description || ""}
                     </p>
                     <p className="mt-2 text-xs text-bodytext">
                       Date opération: {formatDate(String(selectedDime.transactionEntree.dateOperation))}

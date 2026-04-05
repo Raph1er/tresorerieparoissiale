@@ -13,6 +13,27 @@ import {
   validerPaginationDimeQuery,
 } from '@/validations/dime.schema';
 
+function formatterErreur(error: unknown): string {
+  if (error instanceof Error) {
+    return error.stack ?? error.message;
+  }
+
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return String(error);
+  }
+}
+
+function estErreurReseauTransitoire(error: unknown): boolean {
+  const texte = formatterErreur(error).toLowerCase();
+  return (
+    texte.includes('fetch failed') ||
+    texte.includes('und_err_socket') ||
+    texte.includes('other side closed')
+  );
+}
+
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const contexte = await validerAuthentification(request);
@@ -36,15 +57,28 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ erreur: validationQuery.error }, { status: 400 });
     }
 
-    const resultat = await dimeService.getAllRepartitions(
-      validationQuery.data.pagination,
-      validationQuery.data.filters
-    );
+    let resultat;
+    try {
+      resultat = await dimeService.getAllRepartitions(
+        validationQuery.data.pagination,
+        validationQuery.data.filters
+      );
+    } catch (error) {
+      if (!estErreurReseauTransitoire(error)) {
+        throw error;
+      }
+
+      // Une relance absorbe la majorite des fermetures de socket sporadiques cote Supabase.
+      resultat = await dimeService.getAllRepartitions(
+        validationQuery.data.pagination,
+        validationQuery.data.filters
+      );
+    }
 
     return NextResponse.json(resultat, { status: 200 });
   } catch (error) {
     console.error('Erreur GET /api/dimes:', error);
-    await logger.log('ERROR', `Erreur GET /api/dimes: ${error}`);
+    await logger.log('ERROR', `Erreur GET /api/dimes: ${formatterErreur(error)}`);
     return NextResponse.json({ erreur: 'Erreur serveur' }, { status: 500 });
   }
 }
@@ -87,7 +121,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     console.error('Erreur POST /api/dimes:', error);
-    await logger.log('ERROR', `Erreur POST /api/dimes: ${error}`);
+    await logger.log('ERROR', `Erreur POST /api/dimes: ${formatterErreur(error)}`);
     return NextResponse.json({ erreur: 'Erreur serveur' }, { status: 500 });
   }
 }
