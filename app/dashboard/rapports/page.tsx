@@ -126,8 +126,8 @@ export default function DashboardRapportsPage() {
   const [error, setError] = useState<string | null>(null);
   const [hasGenerated, setHasGenerated] = useState(false);
 
-  const [dateDebut, setDateDebut] = useState(today);
-  const [dateFin, setDateFin] = useState(today);
+  const [dateDebut, setDateDebut] = useState("");
+  const [dateFin, setDateFin] = useState("");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("ALL");
   const [categorieId, setCategorieId] = useState("");
   const [evenementId, setEvenementId] = useState("");
@@ -185,8 +185,14 @@ export default function DashboardRapportsPage() {
     cursorY += 7;
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
+    const dateDebutTexte = dateDebut ? formatDateOnly(isoFromDateInput(dateDebut)) : "-";
+    const dateFinTexte = dateFin ? formatDateOnly(isoFromDateInput(dateFin, true)) : "-";
+    const periodeTexte =
+      dateDebut || dateFin
+        ? `Période: ${dateDebutTexte} au ${dateFinTexte}`
+        : "Période: Toutes";
     doc.text(
-      `Période: ${formatDateOnly(isoFromDateInput(dateDebut))} au ${formatDateOnly(isoFromDateInput(dateFin, true))}`,
+      periodeTexte,
       12,
       cursorY
     );
@@ -305,7 +311,9 @@ export default function DashboardRapportsPage() {
       doc.text(`Page ${page} / ${nombrePagesFinal}`, pageWidth - 8, pageHeight - 6, { align: "right" });
     }
 
-    const fileName = `rapport-transactions-${dateDebut}-au-${dateFin}.pdf`;
+    const dateDebutNom = dateDebut || "debut-ouvert";
+    const dateFinNom = dateFin || "fin-ouverte";
+    const fileName = `rapport-transactions-${dateDebutNom}-au-${dateFinNom}.pdf`;
 
     // datauristring = data:application/pdf;filename=generated.pdf;base64,XXXXX
     const dataUri = doc.output("datauristring") as string;
@@ -407,6 +415,10 @@ export default function DashboardRapportsPage() {
     setError(null);
 
     try {
+      if (dateDebut && dateFin && dateDebut > dateFin) {
+        throw new Error("La date début doit être inférieure ou égale à la date fin.");
+      }
+
       const paramsBase = new URLSearchParams();
       paramsBase.set("limit", "100");
       paramsBase.set("orderBy", "dateOperation");
@@ -454,7 +466,11 @@ export default function DashboardRapportsPage() {
         currentPage += 1;
       } while (currentPage <= totalPages);
 
-      setRows(allRows);
+      setRows(
+        [...allRows].sort(
+          (a, b) => new Date(b.dateOperation).getTime() - new Date(a.dateOperation).getTime()
+        )
+      );
       setHasGenerated(true);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Génération du rapport impossible");
@@ -588,8 +604,8 @@ export default function DashboardRapportsPage() {
             <button
               type="button"
               onClick={() => {
-                setDateDebut(today);
-                setDateFin(today);
+                setDateDebut("");
+                setDateFin("");
                 setTypeFilter("ALL");
                 setCategorieId("");
                 setEvenementId("");
