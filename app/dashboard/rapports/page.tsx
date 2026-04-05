@@ -410,7 +410,7 @@ export default function DashboardRapportsPage() {
       const paramsBase = new URLSearchParams();
       paramsBase.set("limit", "100");
       paramsBase.set("orderBy", "dateOperation");
-      paramsBase.set("order", "asc");
+      paramsBase.set("order", "desc");
 
       if (typeFilter !== "ALL") {
         paramsBase.set("type", typeFilter);

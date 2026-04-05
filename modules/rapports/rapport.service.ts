@@ -90,7 +90,7 @@ export class RapportService {
           },
         },
       },
-      orderBy: { dateOperation: 'asc' },
+      orderBy: { dateOperation: 'desc' },
     });
 
     let totalEntrees = 0;
@@ -203,7 +203,7 @@ export class RapportService {
       parCategorie: Array.from(parCategorieMap.values()).sort((a, b) => b.total - a.total),
       parEvenement: Array.from(parEvenementMap.values()).sort((a, b) => b.solde - a.solde),
       evolutionMensuelle: Array.from(parMoisMap.values()).sort((a, b) =>
-        a.mois.localeCompare(b.mois)
+        b.mois.localeCompare(a.mois)
       ),
     };
   }
