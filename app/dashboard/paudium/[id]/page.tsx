@@ -155,7 +155,7 @@ async function construirePdfRapport(cahier: CahierDetail, enregistrements: Enreg
 
   cursorY += 8;
   doc.setFontSize(14);
-  doc.text(`RAPPORT DU CAHIER DE ${cahier.nom.toUpperCase()}`, pageWidth / 2, cursorY, { align: "center" });
+  doc.text(`RAPPORT DU ${cahier.nom.toUpperCase()}`, pageWidth / 2, cursorY, { align: "center" });
 
   cursorY += 7;
   doc.setFont("helvetica", "normal");
