@@ -19,6 +19,7 @@ import {
   Trash,
   User,
 } from "lucide-react";
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { getParoisseReportHeaderLines } from "@/lib/paroisse-config";
 
 interface CahierDetail {
@@ -298,6 +299,7 @@ export default function CahierDetailPage() {
     note: "",
     montant: "",
   });
+  const [confirmEnreg, setConfirmEnreg] = useState<EnregistrementListItem | null>(null);
 
   async function chargerCahier(): Promise<void> {
     try {
@@ -390,21 +392,23 @@ export default function CahierDetailPage() {
   }
 
   async function handleDelete(enreg: EnregistrementListItem): Promise<void> {
-    const confirmed = window.confirm(
-      `Confirmer la suppression de l'enregistrement "${enreg.code}" ?`
-    );
-    if (!confirmed) return;
+    setConfirmEnreg(enreg);
+  }
+
+  async function performDeleteConfirmed(): Promise<void> {
+    if (!confirmEnreg) return;
 
     setMutationLoading(true);
     setError(null);
     setSuccessMessage(null);
 
     try {
-      await fetchWithAuth(`/api/paudium/${cahierId}/enregistrements/${enreg.id}`, {
+      await fetchWithAuth(`/api/paudium/${cahierId}/enregistrements/${confirmEnreg.id}`, {
         method: "DELETE",
       });
 
-      setSuccessMessage(`Enregistrement "${enreg.code}" supprimé.`);
+      setSuccessMessage(`Enregistrement "${confirmEnreg.code}" supprimé.`);
+      setConfirmEnreg(null);
       await Promise.all([chargerEnregistrements(), chargerStatistiques()]);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Suppression impossible");
@@ -789,6 +793,17 @@ export default function CahierDetailPage() {
           </div>
         </div>
       ) : null}
+
+      <ConfirmDialog
+        open={!!confirmEnreg}
+        title={confirmEnreg ? `Confirmer la suppression de l'enregistrement "${confirmEnreg.code}" ?` : undefined}
+        description={confirmEnreg ? `Cette action supprimera définitivement l'enregistrement ${confirmEnreg.code}. Cette opération est irréversible.` : undefined}
+        confirmLabel="Oui, supprimer"
+        cancelLabel="Annuler"
+        loading={mutationLoading}
+        onConfirm={performDeleteConfirmed}
+        onCancel={() => setConfirmEnreg(null)}
+      />
     </section>
   );
 }
