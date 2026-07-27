@@ -159,7 +159,7 @@ export class PaudiumService {
 	}
 
 	/**
-	 * Supprime (désactive) un cahier.
+	 * Supprime définitivement un cahier.
 	 */
 	async deleteCahier(id: number, deletedById: number): Promise<CahierResponseDTO> {
 		const cahier = await cahierRepository.findById(id, true);

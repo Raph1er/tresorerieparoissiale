@@ -2,7 +2,7 @@
  * Route API pour la gestion d'un cahier spécifique.
  * GET: détails d'un cahier.
  * PUT: mise à jour d'un cahier.
- * DELETE: suppression (désactivation) d'un cahier.
+ * DELETE: suppression définitive d'un cahier.
  */
 
 import { NextRequest, NextResponse } from 'next/server';

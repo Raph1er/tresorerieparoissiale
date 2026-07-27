@@ -155,12 +155,12 @@ async function construirePdfRapport(cahier: CahierDetail, enregistrements: Enreg
 
   cursorY += 8;
   doc.setFontSize(14);
-  doc.text("RAPPORT DU CAHIER", pageWidth / 2, cursorY, { align: "center" });
+  doc.text(`RAPPORT DU CAHIER DE ${cahier.nom.toUpperCase()}`, pageWidth / 2, cursorY, { align: "center" });
 
   cursorY += 7;
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
-  doc.text(`Cahier: ${cahier.nom}`, 12, cursorY);
+  // doc.text(`Cahier: ${cahier.nom}`, 12, cursorY);
   doc.text(`Généré le : ${new Date().toLocaleString("fr-FR")}`, pageWidth - 12, cursorY, {
     align: "right",
   });

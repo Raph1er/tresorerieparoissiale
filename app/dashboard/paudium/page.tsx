@@ -44,12 +44,53 @@ interface CahierMutationPayload {
   actif?: boolean;
 }
 
+interface EnregistrementListItem {
+  id: number;
+  code: string;
+  nomPersonne: string;
+  note: string | null;
+  montant: number;
+  dateHeure: string;
+}
+
+interface EnregistrementDeletePreview {
+  cahier: CahierListItem;
+  enregistrements: EnregistrementListItem[];
+}
+
 function formatMontant(montant: number): string {
   return new Intl.NumberFormat("fr-FR", {
     style: "currency",
     currency: "XOF",
     minimumFractionDigits: 0,
   }).format(montant);
+}
+
+async function fetchAllEnregistrementsCahier(cahierId: number) {
+  const allItems: EnregistrementListItem[] = [];
+  let page = 1;
+  let totalPages = 1;
+
+  do {
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: "100",
+      orderBy: "dateHeure",
+      order: "desc",
+    });
+
+    const response = await fetchWithAuth<{
+      data: EnregistrementListItem[];
+      page: number;
+      totalPages: number;
+    }>(`/api/paudium/${cahierId}/enregistrements?${params.toString()}`);
+
+    allItems.push(...response.data);
+    totalPages = response.totalPages;
+    page += 1;
+  } while (page <= totalPages);
+
+  return allItems;
 }
 
 export default function DashboardPaudiumPage() {
@@ -65,9 +106,11 @@ export default function DashboardPaudiumPage() {
   const [searchInput, setSearchInput] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [mutationLoading, setMutationLoading] = useState(false);
+  const [deletePreviewLoading, setDeletePreviewLoading] = useState(false);
   const [formMode, setFormMode] = useState<FormMode>("create");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCahierId, setEditingCahierId] = useState<number | null>(null);
+  const [deletePreview, setDeletePreview] = useState<EnregistrementDeletePreview | null>(null);
   const [form, setForm] = useState<CahierFormState>({
     nom: "",
     prefixeCode: "",
@@ -163,21 +206,38 @@ export default function DashboardPaudiumPage() {
   }
 
   async function handleDelete(cahier: CahierListItem): Promise<void> {
-    const confirmed = window.confirm(
-      `Confirmer la suppression du cahier "${cahier.nom}" ?`
-    );
-    if (!confirmed) return;
+    setError(null);
+    setSuccessMessage(null);
+
+    setDeletePreviewLoading(true);
+
+    try {
+      const enregistrements = await fetchAllEnregistrementsCahier(cahier.id);
+      setDeletePreview({ cahier, enregistrements });
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Chargement du contenu du cahier impossible");
+    } finally {
+      setDeletePreviewLoading(false);
+    }
+  }
+
+  async function confirmDeleteCahier(): Promise<void> {
+    if (!deletePreview) return;
 
     setMutationLoading(true);
     setError(null);
     setSuccessMessage(null);
 
     try {
-      await fetchWithAuth(`/api/paudium/${cahier.id}`, {
+      await fetchWithAuth(`/api/paudium/${deletePreview.cahier.id}`, {
         method: "DELETE",
       });
 
-      setSuccessMessage(`Cahier "${cahier.nom}" supprimé.`);
+      const suffix = deletePreview.enregistrements.length > 0
+        ? ` et ${deletePreview.enregistrements.length} enregistrement(s)`
+        : "";
+      setSuccessMessage(`Cahier "${deletePreview.cahier.nom}"${suffix} supprimé(s).`);
+      setDeletePreview(null);
       await chargerCahiers();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Suppression impossible");
@@ -324,11 +384,10 @@ export default function DashboardPaudiumPage() {
                 key={option.value}
                 type="button"
                 onClick={() => handleStatusChange(option.value)}
-                className={`px-3 py-2 text-sm font-medium ${
-                  statusFilter === option.value
+                className={`px-3 py-2 text-sm font-medium ${statusFilter === option.value
                     ? "bg-dark text-white dark:bg-primary"
                     : "bg-transparent text-link dark:text-white"
-                }`}
+                  }`}
               >
                 {option.label}
               </button>
@@ -430,11 +489,10 @@ export default function DashboardPaudiumPage() {
                     <td className="py-3 px-3 align-top">
                       <div className="flex justify-end">
                         <span
-                          className={`inline-flex rounded-lg px-2 py-1 text-xs font-semibold ${
-                            cahier.actif
+                          className={`inline-flex rounded-lg px-2 py-1 text-xs font-semibold ${cahier.actif
                               ? "bg-lightsuccess text-success"
                               : "bg-lightwarning text-warning"
-                          }`}
+                            }`}
                         >
                           {cahier.actif ? "Actif" : "Inactif"}
                         </span>
@@ -458,7 +516,7 @@ export default function DashboardPaudiumPage() {
                         </button>
                         <button
                           type="button"
-                          disabled={mutationLoading}
+                          disabled={mutationLoading || deletePreviewLoading}
                           onClick={() => handleDelete(cahier)}
                           className="inline-flex items-center gap-1 rounded-lg border border-lighterror px-2.5 py-1.5 text-xs font-medium text-error disabled:opacity-50"
                         >
@@ -590,6 +648,88 @@ export default function DashboardPaudiumPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      ) : null}
+
+      {deletePreview ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4">
+          <div className="w-full max-w-3xl rounded-2xl bg-white dark:bg-darkgray border border-lighterror shadow-xl">
+            <div className="border-b border-border dark:border-darkborder px-5 py-4 flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs uppercase tracking-[0.18em] text-error font-semibold">
+                  Suppression définitive
+                </p>
+                <h2 className="mt-1 text-lg font-semibold text-dark dark:text-white">
+                  {deletePreview.cahier.nom}
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDeletePreview(null)}
+                className="text-sm text-bodytext hover:text-dark dark:hover:text-white"
+              >
+                Annuler
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div className="rounded-xl border border-lighterror bg-lighterror/40 p-4 text-sm text-error space-y-2">
+                <p className="font-semibold">
+                  Cette action supprimera le cahier et tous ses enregistrements de la base de données.
+                </p>
+                <p>
+                  Enregistrements trouvés : <strong>{deletePreview.enregistrements.length}</strong>
+                </p>
+              </div>
+
+              {deletePreview.enregistrements.length > 0 ? (
+                <div className="rounded-xl border border-border dark:border-darkborder">
+                  <div className="max-h-80 overflow-y-auto divide-y divide-border dark:divide-darkborder">
+                    {deletePreview.enregistrements.map((enreg) => (
+                      <div key={enreg.id} className="px-4 py-3 text-sm">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div>
+                            <p className="font-semibold text-dark dark:text-white">{enreg.code}</p>
+                            <p className="text-bodytext">
+                              {enreg.nomPersonne}{enreg.note ? ` - ${enreg.note}` : ""}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-semibold text-success">{formatMontant(enreg.montant)}</p>
+                            <p className="text-xs text-bodytext">
+                              {new Date(enreg.dateHeure).toLocaleString("fr-FR")}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-border dark:border-darkborder bg-lightgray/40 p-4 text-sm text-bodytext">
+                  Aucun enregistrement n’est rattaché à ce cahier.
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setDeletePreview(null)}
+                  className="rounded-xl border border-border dark:border-darkborder px-4 py-2 text-sm text-link dark:text-white"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  disabled={mutationLoading}
+                  onClick={confirmDeleteCahier}
+                  className="rounded-xl bg-error px-4 py-2 text-sm text-white disabled:opacity-50"
+                >
+                  {mutationLoading ? "Suppression..." : "Oui, supprimer définitivement"}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       ) : null}

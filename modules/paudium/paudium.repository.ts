@@ -161,7 +161,7 @@ export class CahierRepository {
 	async delete(id: number): Promise<CahierResponseDTO> {
 		const { data: cahier, error } = await supabaseServer
 			.from('cahiers')
-			.update({ actif: false })
+			.delete()
 			.eq('id', id)
 			.select()
 			.single();
