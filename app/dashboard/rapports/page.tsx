@@ -12,6 +12,7 @@ import {
   Mail,
   Search,
 } from "lucide-react";
+import { getParoisseReportHeaderLines } from "@/lib/paroisse-config";
 
 function getTodayInputValue(): string {
   const date = new Date();
@@ -158,10 +159,7 @@ export default function DashboardRapportsPage() {
       "EGLISE DU CHRISTIANISME CELESTE",
       "SAINT SIEGE DE PORTO-NOVO",
       "DIOCESE DU BENIN",
-      "REGION MONO",
-      "SOUS-REGION LOKOSSA",
-      "PAROISSE SAINT MICHEL DE LOKOSSA CENTRE",
-      "BP : 202 LOKOSSA",
+      ...getParoisseReportHeaderLines(),
       "Trésorerie Paroissiale",
     ];
 

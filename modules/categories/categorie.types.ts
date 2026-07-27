@@ -14,6 +14,7 @@ export interface CreateCategorieDTO {
 	description?: string;
 	parentId?: number;
 	estSysteme?: boolean;
+	utilisateurId?: number | null;
 }
 
 /**

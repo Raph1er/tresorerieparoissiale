@@ -27,6 +27,7 @@ type RepartitionDbPayload = {
     type: TypeTransaction;
     description: string | null;
     dateOperation: Date;
+    utilisateurId: number;
   };
 };
 
@@ -71,6 +72,7 @@ export class DimeRepository {
         type: true,
         description: true,
         dateOperation: true,
+        utilisateurId: true,
       },
     },
   } as const;
@@ -94,7 +96,7 @@ export class DimeRepository {
     return versRepartitionDTO(created as RepartitionDbPayload);
   }
 
-  async findById(id: number): Promise<RepartitionDimeResponseDTO | null> {
+  async findById(id: number, utilisateurId?: number): Promise<RepartitionDimeResponseDTO | null> {
     const item = await supabaseDb.repartitionDime.findUnique({
       where: { id },
       select: this.selectRepartition,
@@ -104,11 +106,16 @@ export class DimeRepository {
       return null;
     }
 
+    if (utilisateurId !== undefined && item.transaction.utilisateurId !== utilisateurId) {
+      return null;
+    }
+
     return versRepartitionDTO(item as RepartitionDbPayload);
   }
 
   async findByTransactionId(
-    transactionId: number
+    transactionId: number,
+    utilisateurId?: number
   ): Promise<RepartitionDimeResponseDTO | null> {
     const item = await supabaseDb.repartitionDime.findUnique({
       where: { transactionId },
@@ -116,6 +123,10 @@ export class DimeRepository {
     });
 
     if (!item) {
+      return null;
+    }
+
+    if (utilisateurId !== undefined && item.transaction.utilisateurId !== utilisateurId) {
       return null;
     }
 
@@ -128,7 +139,31 @@ export class DimeRepository {
   ): Promise<PaginatedResponse<RepartitionDimeResponseDTO>> {
     const where: any = {};
 
-    if (filters.transactionId) {
+    if (filters.utilisateurId !== undefined) {
+      const transactionWhere: any = { utilisateurId: filters.utilisateurId };
+      if (filters.transactionId !== undefined) {
+        transactionWhere.id = filters.transactionId;
+      }
+      const transactions = await supabaseDb.transaction.findMany({
+        where: transactionWhere,
+        select: { id: true },
+      });
+      const transactionIds = transactions.map((transaction: any) => transaction.id);
+
+      if (transactionIds.length === 0) {
+        return {
+          data: [],
+          pagination: {
+            page: pagination.page,
+            limit: pagination.limit,
+            total: 0,
+            totalPages: 0,
+          },
+        };
+      }
+
+      where.transactionId = { in: transactionIds };
+    } else if (filters.transactionId) {
       where.transactionId = filters.transactionId;
     }
 

@@ -115,8 +115,8 @@ export class TransactionService {
   /**
    * Récupère une transaction par son ID.
    */
-  async findById(id: number): Promise<TransactionResponseDTO | null> {
-    return this.repository.findById(id);
+  async findById(id: number, utilisateurId?: number): Promise<TransactionResponseDTO | null> {
+    return this.repository.findById(id, utilisateurId);
   }
 
   /**
@@ -126,10 +126,11 @@ export class TransactionService {
   async update(
     id: number,
     data: UpdateTransactionDTO,
-    utilisateurId: number
+    updatedById: number,
+    utilisateurId?: number
   ): Promise<TransactionResponseDTO> {
-    // Vérifier que la transaction existe
-    const transactionExistante = await this.repository.findById(id);
+    // Vérifier que la transaction existe et appartient à l'utilisateur
+    const transactionExistante = await this.repository.findById(id, utilisateurId);
     if (!transactionExistante) {
       throw new Error(`Transaction avec l'ID ${id} introuvable`);
     }
@@ -250,7 +251,7 @@ export class TransactionService {
           modePaiement: data.modePaiement,
           evenementId: data.evenementId,
         },
-        utilisateurId
+        updatedById
       );
 
       const transactionSynchronisee = await this.repository.findById(id);
@@ -280,9 +281,9 @@ export class TransactionService {
    * Suppression logique d'une transaction.
    * Vérifie qu'elle n'a pas de répartition de dîme.
    */
-  async softDelete(id: number, utilisateurId: number): Promise<TransactionResponseDTO> {
-    // Vérifier que la transaction existe
-    const transaction = await this.repository.findById(id);
+  async softDelete(id: number, utilisateurId?: number): Promise<TransactionResponseDTO> {
+    // Vérifier que la transaction existe et appartient à l'utilisateur
+    const transaction = await this.repository.findById(id, utilisateurId);
     if (!transaction) {
       throw new Error(`Transaction avec l'ID ${id} introuvable`);
     }

@@ -44,15 +44,26 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
 
     // 4) Récupération via service.
+    const utilisateurId = contexte.role !== 'ADMIN' ? contexte.userId : undefined;
     const resultat = await evenementService.getAllEvenements(
       validationQuery.data.pagination,
-      validationQuery.data.filters
+      validationQuery.data.filters,
+      utilisateurId
     );
 
     return NextResponse.json(resultat, { status: 200 });
   } catch (error) {
-    console.error('Erreur GET /api/evenements:', error);
-    await logger.log('ERROR', `Erreur GET /api/evenements: ${error}`);
+    console.error('❌ ========================================');
+    console.error('❌ Erreur GET /api/evenements');
+    console.error('❌ Type:', typeof error);
+    console.error('❌ Error complet:', JSON.stringify(error, null, 2));
+    
+    if (error instanceof Error) {
+      console.error('❌ Name:', error.name);
+      console.error('❌ Message:', error.message);
+      console.error('❌ Stack:', error.stack);
+    }
+    console.error('❌ ========================================');
 
     return NextResponse.json({ erreur: 'Erreur serveur' }, { status: 500 });
   }

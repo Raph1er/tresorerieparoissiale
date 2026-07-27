@@ -52,7 +52,10 @@ export async function GET(
     }
 
     // 4) Récupération de la transaction.
-    const transaction = await transactionService.findById(validationId.data);
+    const transaction = await transactionService.findById(
+      validationId.data,
+      contexte.role !== 'ADMIN' ? contexte.userId : undefined
+    );
 
     if (!transaction) {
       return NextResponse.json(
@@ -111,7 +114,8 @@ export async function PUT(
     const transaction = await transactionService.update(
       validationId.data,
       validationBody.data,
-      contexte.userId
+      contexte.userId,
+      contexte.role !== 'ADMIN' ? contexte.userId : undefined
     );
 
     return NextResponse.json(transaction, { status: 200 });
@@ -168,7 +172,7 @@ export async function DELETE(
     // 4) Suppression logique.
     const transaction = await transactionService.softDelete(
       validationId.data,
-      contexte.userId
+      contexte.role !== 'ADMIN' ? contexte.userId : undefined
     );
 
     return NextResponse.json(

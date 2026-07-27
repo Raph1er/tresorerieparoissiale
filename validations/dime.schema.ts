@@ -257,6 +257,18 @@ export function validerPaginationDimeQuery(
     filters.transactionId = transactionId;
   }
 
+  const rawUtilisateurId = getValue('utilisateurId');
+  if (rawUtilisateurId !== undefined) {
+    const utilisateurId = parserEntierPositif(rawUtilisateurId);
+    if (!utilisateurId) {
+      return {
+        success: false,
+        error: 'Le parametre "utilisateurId" doit etre un entier positif',
+      };
+    }
+    filters.utilisateurId = utilisateurId;
+  }
+
   const rawDateDe = getValue('dateDe');
   if (rawDateDe !== undefined) {
     const dateDe = parserDate(rawDateDe);

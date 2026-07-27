@@ -44,9 +44,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 		}
 
 		// 4) Récupération via service.
+		const utilisateurId = contexte.role !== 'ADMIN' ? contexte.userId : undefined;
 		const resultat = await categorieService.getAllCategories(
 			validationQuery.data.pagination,
-			validationQuery.data.filters
+			validationQuery.data.filters,
+			utilisateurId
 		);
 
 		return NextResponse.json(resultat, { status: 200 });
@@ -86,7 +88,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 		// 4) Création métier.
 		const categorie = await categorieService.createCategorie(
 			validationBody.data,
-			contexte.userId
+			contexte.userId,
+			contexte.role === 'ADMIN'
 		);
 
 		return NextResponse.json(categorie, { status: 201 });

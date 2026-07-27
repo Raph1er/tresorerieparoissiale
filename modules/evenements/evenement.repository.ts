@@ -72,6 +72,7 @@ export class EvenementRepository {
         dateDebut: new Date(data.dateDebut),
         dateFin: data.dateFin ? new Date(data.dateFin) : null,
         actif: true,
+        utilisateurId: data.utilisateurId ?? null,
       },
       select: this.selectEvenement,
     });
@@ -82,8 +83,11 @@ export class EvenementRepository {
   /**
    * Récupère un évènement par son ID.
    */
-  async findById(id: number, includeInactive = true): Promise<EvenementResponseDTO | null> {
+  async findById(id: number, utilisateurId?: number, includeInactive = true): Promise<EvenementResponseDTO | null> {
     const where: any = { id };
+    if (utilisateurId !== undefined) {
+      where.utilisateurId = utilisateurId;
+    }
 
     const evenement = await supabaseDb.evenement.findUnique({
       where,
@@ -104,7 +108,7 @@ export class EvenementRepository {
   /**
    * Met à jour un évènement existant.
    */
-  async update(id: number, data: UpdateEvenementDTO): Promise<EvenementResponseDTO> {
+  async update(id: number, data: UpdateEvenementDTO, utilisateurId?: number): Promise<EvenementResponseDTO> {
     const updateData: any = {};
 
     if (data.nom !== undefined) updateData.nom = data.nom;
@@ -115,8 +119,13 @@ export class EvenementRepository {
     }
     if (data.actif !== undefined) updateData.actif = data.actif;
 
+    const where: any = { id };
+    if (utilisateurId !== undefined) {
+      where.utilisateurId = utilisateurId;
+    }
+
     const evenement = await supabaseDb.evenement.update({
-      where: { id },
+      where,
       data: updateData,
       select: this.selectEvenement,
     });
@@ -142,46 +151,59 @@ export class EvenementRepository {
   /**
    * Liste paginée des évènements avec filtres.
    */
-  async findAll(
-    options: PaginationOptions,
-    filters?: EvenementFilter
-  ): Promise<PaginatedResponse<EvenementResponseDTO>> {
-    const where: any = {};
+async findAll(
+  options: PaginationOptions,
+  filters?: EvenementFilter,
+  utilisateurId?: number
+): Promise<PaginatedResponse<EvenementResponseDTO>> {
+  console.log('🔍 [REPO] Début findAll');
+  console.log('🔍 [REPO] Options:', options);
+  console.log('🔍 [REPO] Filters:', filters);
+  console.log('🔍 [REPO] UtilisateurId:', utilisateurId);
 
-    // Filtre textuel sur le nom et la description.
-    if (filters?.search) {
-      where.OR = [
-        { nom: { contains: filters.search } },
-        { description: { contains: filters.search } },
-      ];
+  const where: any = {};
+
+  if (utilisateurId !== undefined) {
+    where.utilisateurId = utilisateurId;
+  }
+
+  if (filters?.search) {
+    where.OR = [
+      { nom: { contains: filters.search } },
+      { description: { contains: filters.search } },
+    ];
+  }
+
+  if (filters?.actif !== undefined) {
+    where.actif = filters.actif;
+  }
+
+  if (filters?.dateDebutDe || filters?.dateDebutJusqua) {
+    where.dateDebut = {};
+    if (filters.dateDebutDe) {
+      where.dateDebut.gte = new Date(filters.dateDebutDe);
     }
-
-    if (filters?.actif !== undefined) {
-      where.actif = filters.actif;
+    if (filters.dateDebutJusqua) {
+      where.dateDebut.lte = new Date(filters.dateDebutJusqua);
     }
+  }
 
-    // Filtre par plage de dates de début.
-    if (filters?.dateDebutDe || filters?.dateDebutJusqua) {
-      where.dateDebut = {};
-      if (filters.dateDebutDe) {
-        where.dateDebut.gte = new Date(filters.dateDebutDe);
-      }
-      if (filters.dateDebutJusqua) {
-        where.dateDebut.lte = new Date(filters.dateDebutJusqua);
-      }
-    }
+  if (filters?.enCours !== undefined && filters.enCours) {
+    const maintenant = new Date();
+    where.dateDebut = { lte: maintenant };
+    where.OR = [
+      { dateFin: null },
+      { dateFin: { gte: maintenant } },
+    ];
+  }
 
-    // Filtre évènements en cours (dateDebut <= maintenant <= dateFin OU dateFin null).
-    if (filters?.enCours !== undefined && filters.enCours) {
-      const maintenant = new Date();
-      where.dateDebut = { lte: maintenant };
-      where.OR = [
-        { dateFin: null },
-        { dateFin: { gte: maintenant } },
-      ];
-    }
+  console.log('🔍 [REPO] Where construit:', JSON.stringify(where, null, 2));
 
+  try {
+    console.log('🔍 [REPO] Avant count()');
     const total = await supabaseDb.evenement.count({ where });
+    console.log('🔍 [REPO] Après count(), total:', total);
+    
     const totalPages = Math.ceil(total / options.limit) || 1;
     const skip = (options.page - 1) * options.limit;
 
@@ -189,6 +211,7 @@ export class EvenementRepository {
       [options.orderBy ?? 'dateDebut']: options.order ?? 'desc',
     };
 
+    console.log('🔍 [REPO] Avant findMany()');
     const evenements = await supabaseDb.evenement.findMany({
       where,
       select: this.selectEvenement,
@@ -196,6 +219,7 @@ export class EvenementRepository {
       take: options.limit,
       orderBy,
     });
+    console.log('🔍 [REPO] Après findMany(), nb résultats:', evenements.length);
 
     return {
       data: evenements.map((evenement: any) => versEvenementResponseDTO(evenement as EvenementDbPayload)),
@@ -206,15 +230,48 @@ export class EvenementRepository {
       hasNextPage: options.page < totalPages,
       hasPreviousPage: options.page > 1,
     };
+  } catch (error) {
+    console.error('🔥 [REPO] ERREUR DANS findAll:');
+    console.error('🔥 Type:', typeof error);
+    console.error('🔥 Constructor:', error?.constructor?.name);
+    
+    // Logger TOUTES les propriétés (même non-énumérables)
+if (error && typeof error === 'object') {
+  const allProps = Object.getOwnPropertyNames(error);
+  console.error('🔥 Toutes les propriétés:', allProps);
+
+  const err = error as any;
+  const errorObj: Record<string, any> = {};
+
+  for (const prop of allProps) {
+    errorObj[prop] = err[prop];
   }
 
+  console.error(
+    '🔥 Error complet (toutes props):',
+    JSON.stringify(errorObj, null, 2)
+  );
+}
+    
+    if (error instanceof Error) {
+      console.error('🔥 Name:', error.name);
+      console.error('🔥 Message:', error.message);
+      console.error('🔥 Stack:', error.stack);
+    }
+    throw error;
+  }
+}
   /**
    * Vérifie si un nom d'évènement existe déjà.
    */
-  async nomExists(nom: string, exceptId?: number): Promise<boolean> {
+  async nomExists(nom: string, utilisateurId?: number, exceptId?: number): Promise<boolean> {
     const where: any = {
       nom,
     };
+
+    if (utilisateurId !== undefined) {
+      where.utilisateurId = utilisateurId;
+    }
 
     if (exceptId) {
       where.id = { not: exceptId };

@@ -57,11 +57,23 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ erreur: validationQuery.error }, { status: 400 });
     }
 
+    if (
+      contexte.role !== 'ADMIN' &&
+      validationQuery.data.filters.utilisateurId !== undefined &&
+      validationQuery.data.filters.utilisateurId !== contexte.userId
+    ) {
+      return NextResponse.json(
+        { erreur: 'Accès non autorisé au filtre utilisateurId' },
+        { status: 403 }
+      );
+    }
+
     let resultat;
     try {
       resultat = await dimeService.getAllRepartitions(
         validationQuery.data.pagination,
-        validationQuery.data.filters
+        validationQuery.data.filters,
+        contexte.role !== 'ADMIN' ? contexte.userId : undefined
       );
     } catch (error) {
       if (!estErreurReseauTransitoire(error)) {
@@ -71,7 +83,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       // Une relance absorbe la majorite des fermetures de socket sporadiques cote Supabase.
       resultat = await dimeService.getAllRepartitions(
         validationQuery.data.pagination,
-        validationQuery.data.filters
+        validationQuery.data.filters,
+        contexte.role !== 'ADMIN' ? contexte.userId : undefined
       );
     }
 

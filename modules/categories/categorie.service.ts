@@ -24,7 +24,8 @@ export class CategorieService {
 	 */
 	async createCategorie(
 		data: CreateCategorieDTO,
-		createdById: number
+		createdById: number,
+		isAdmin = false
 	): Promise<CategorieResponseDTO> {
 		const nomNettoye = data.nom.trim();
 
@@ -32,15 +33,21 @@ export class CategorieService {
 			throw new Error('Le nom de la catégorie est requis');
 		}
 
-		// Le nom doit rester unique par type (ENTREE/SORTIE).
-		const nomDejaUtilise = await categorieRepository.nomExists(nomNettoye, data.type);
+		const proprietaireId = isAdmin ? undefined : createdById;
+
+		// Le nom doit rester unique par type dans le même compte utilisateur.
+		const nomDejaUtilise = await categorieRepository.nomExists(
+			nomNettoye,
+			data.type,
+			proprietaireId
+		);
 		if (nomDejaUtilise) {
 			throw new Error(`La catégorie "${nomNettoye}" existe déjà pour le type ${data.type}`);
 		}
 
 		// Si on rattache à un parent, on vérifie sa cohérence.
 		if (data.parentId !== undefined) {
-			const parent = await categorieRepository.findById(data.parentId, false);
+			const parent = await categorieRepository.findById(data.parentId, proprietaireId, false);
 			if (!parent) {
 				throw new Error('La catégorie parent est introuvable ou inactive');
 			}
@@ -54,6 +61,7 @@ export class CategorieService {
 			...data,
 			nom: nomNettoye,
 			description: data.description?.trim() || undefined,
+			utilisateurId: proprietaireId ?? null,
 		});
 
 		await logger.log(
@@ -68,8 +76,8 @@ export class CategorieService {
 	/**
 	 * Retourne une catégorie par ID.
 	 */
-	async getCategorieById(id: number): Promise<CategorieResponseDTO> {
-		const categorie = await categorieRepository.findById(id, true);
+	async getCategorieById(id: number, utilisateurId?: number): Promise<CategorieResponseDTO> {
+		const categorie = await categorieRepository.findById(id, utilisateurId, true);
 		if (!categorie) {
 			throw new Error(`Catégorie avec l'ID ${id} introuvable`);
 		}
@@ -82,7 +90,8 @@ export class CategorieService {
 	 */
 	async getAllCategories(
 		options: PaginationOptions,
-		filters?: CategorieFilter
+		filters?: CategorieFilter,
+		utilisateurId?: number
 	): Promise<PaginatedResponse<CategorieResponseDTO>> {
 		if (options.page < 1) {
 			throw new Error('Le numéro de page doit être supérieur ou égal à 1');
@@ -92,7 +101,7 @@ export class CategorieService {
 			throw new Error('La limite doit être comprise entre 1 et 100');
 		}
 
-		return categorieRepository.findAll(options, filters);
+		return categorieRepository.findAll(options, filters, utilisateurId);
 	}
 
 	/**
@@ -101,9 +110,10 @@ export class CategorieService {
 	async updateCategorie(
 		id: number,
 		data: UpdateCategorieDTO,
-		updatedById: number
+		updatedById: number,
+		utilisateurId?: number
 	): Promise<CategorieResponseDTO> {
-		const categorieExistante = await categorieRepository.findById(id, true);
+		const categorieExistante = await categorieRepository.findById(id, utilisateurId, true);
 		if (!categorieExistante) {
 			throw new Error(`Catégorie avec l'ID ${id} introuvable`);
 		}
@@ -116,7 +126,7 @@ export class CategorieService {
 				throw new Error('Le nom de la catégorie ne peut pas être vide');
 			}
 
-			const nomExiste = await categorieRepository.nomExists(nomNettoye, typeFinal, id);
+			const nomExiste = await categorieRepository.nomExists(nomNettoye, typeFinal, utilisateurId, id);
 			if (nomExiste) {
 				throw new Error(`La catégorie "${nomNettoye}" existe déjà pour le type ${typeFinal}`);
 			}
@@ -129,7 +139,7 @@ export class CategorieService {
 			}
 
 			if (data.parentId !== null) {
-				const parent = await categorieRepository.findById(data.parentId, false);
+				const parent = await categorieRepository.findById(data.parentId, utilisateurId, false);
 				if (!parent) {
 					throw new Error('La catégorie parent est introuvable ou inactive');
 				}
@@ -148,11 +158,15 @@ export class CategorieService {
 			}
 		}
 
-		const categorieMiseAJour = await categorieRepository.update(id, {
-			...data,
-			nom: nomNettoye,
-			description: data.description !== undefined ? data.description.trim() : undefined,
-		});
+		const categorieMiseAJour = await categorieRepository.update(
+			id,
+			{
+				...data,
+				nom: nomNettoye,
+				description: data.description !== undefined ? data.description.trim() : undefined,
+			},
+			utilisateurId
+		);
 
 		await logger.log(
 			'CATEGORY_UPDATED',
@@ -167,7 +181,7 @@ export class CategorieService {
 	 * Supprime (logiquement) une catégorie.
 	 */
 	async deleteCategorie(id: number, deletedById: number): Promise<CategorieResponseDTO> {
-		const categorie = await categorieRepository.findById(id, true);
+		const categorie = await categorieRepository.findById(id, undefined, true);
 		if (!categorie) {
 			throw new Error(`Catégorie avec l'ID ${id} introuvable`);
 		}

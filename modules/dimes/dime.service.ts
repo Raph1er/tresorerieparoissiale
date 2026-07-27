@@ -393,8 +393,8 @@ export class DimeService {
   /**
    * Retourne une repartition par ID.
    */
-  async getRepartitionById(id: number): Promise<RepartitionDimeResponseDTO> {
-    const repartition = await dimeRepository.findById(id);
+  async getRepartitionById(id: number, utilisateurId?: number): Promise<RepartitionDimeResponseDTO> {
+    const repartition = await dimeRepository.findById(id, utilisateurId);
     if (!repartition) {
       throw new Error(`Repartition avec l'ID ${id} introuvable`);
     }
@@ -432,9 +432,10 @@ export class DimeService {
   async updateRepartition(
     id: number,
     data: UpdateRepartitionDimeDTO,
-    updatedById: number
+    updatedById: number,
+    utilisateurId?: number
   ): Promise<RepartitionDimeResponseDTO> {
-    const repartition = await dimeRepository.findById(id);
+    const repartition = await dimeRepository.findById(id, utilisateurId);
     if (!repartition) {
       throw new Error(`Repartition avec l'ID ${id} introuvable`);
     }
@@ -469,7 +470,8 @@ export class DimeService {
    */
   async getAllRepartitions(
     options: PaginationOptions,
-    filters: RepartitionDimeFilter
+    filters: RepartitionDimeFilter,
+    utilisateurId?: number
   ): Promise<PaginatedResponse<RepartitionDimeResponseDTO>> {
     if (options.page < 1) {
       throw new Error('Le numero de page doit etre superieur ou egal a 1');
@@ -479,7 +481,10 @@ export class DimeService {
       throw new Error('La limite doit etre comprise entre 1 et 100');
     }
 
-    const resultBase = await dimeRepository.findAll(options, filters);
+    const resultBase = await dimeRepository.findAll(options, {
+      ...filters,
+      utilisateurId: utilisateurId ?? filters.utilisateurId,
+    });
 
     // Enrichir chaque item avec les transactions generes
     const dataEnrichi = await Promise.all(

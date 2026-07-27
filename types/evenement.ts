@@ -11,6 +11,7 @@ export interface CreateEvenementDTO {
   description?: string;
   dateDebut: Date | string;
   dateFin?: Date | string | null;
+  utilisateurId?: number | null;
 }
 
 /**

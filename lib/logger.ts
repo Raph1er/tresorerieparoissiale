@@ -28,7 +28,7 @@ export type TypeAction =
   | 'USER_UPDATED'
   | 'USER_DELETED'
   | 'USER_DISABLED'
-  | 'ERROR' // Pour les erreurs générales, comme les erreurs serveur ou les exceptions non gérées
+  | 'ERROR'
   // Gestion des catégories
   | 'CATEGORY_CREATED'
   | 'CATEGORY_UPDATED'
@@ -47,7 +47,17 @@ export type TypeAction =
   | 'TITHES_CREATED'
   | 'TITHES_UPDATED'
   | 'TITHES_DELETED'
-  | 'TITHES_CALCULATED';
+  | 'TITHES_CALCULATED'
+  // Gestion du Paudium (Cahiers)
+  | 'CAHIER_CREATED'
+  | 'CAHIER_UPDATED'
+  | 'CAHIER_DELETED'
+  // Gestion du Paudium (Enregistrements)
+  | 'ENREGISTREMENT_CREATED'
+  | 'ENREGISTREMENT_UPDATED'
+  | 'ENREGISTREMENT_DELETED'
+  // Logs généraux
+  | 'WARN';
 
 /**
  * Classe Logger pour la gestion centralisée des logs

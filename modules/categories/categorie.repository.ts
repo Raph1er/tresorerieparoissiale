@@ -93,6 +93,7 @@ export class CategorieRepository {
 				parentId: data.parentId,
 				estSysteme: data.estSysteme ?? false,
 				actif: true,
+				utilisateurId: data.utilisateurId ?? null,
 			},
 			select: this.selectCategorie,
 		});
@@ -103,8 +104,11 @@ export class CategorieRepository {
 	/**
 	 * Récupère une catégorie par son ID.
 	 */
-	async findById(id: number, includeInactive = true): Promise<CategorieResponseDTO | null> {
+	async findById(id: number, utilisateurId?: number, includeInactive = true): Promise<CategorieResponseDTO | null> {
 		const where: any = { id };
+		if (utilisateurId !== undefined) {
+			where.utilisateurId = utilisateurId;
+		}
 
 		const categorie = await supabaseDb.categorie.findUnique({
 			where,
@@ -125,7 +129,7 @@ export class CategorieRepository {
 	/**
 	 * Met à jour une catégorie existante.
 	 */
-	async update(id: number, data: UpdateCategorieDTO): Promise<CategorieResponseDTO> {
+	async update(id: number, data: UpdateCategorieDTO, utilisateurId?: number): Promise<CategorieResponseDTO> {
 		const updateData: any = {};
 
 		if (data.nom !== undefined) updateData.nom = data.nom;
@@ -134,8 +138,13 @@ export class CategorieRepository {
 		if (data.parentId !== undefined) updateData.parent = data.parentId === null ? { disconnect: true } : { connect: { id: data.parentId } };
 		if (data.actif !== undefined) updateData.actif = data.actif;
 
+		const where: any = { id };
+		if (utilisateurId !== undefined) {
+			where.utilisateurId = utilisateurId;
+		}
+
 		const categorie = await supabaseDb.categorie.update({
-			where: { id },
+			where,
 			data: updateData,
 			select: this.selectCategorie,
 		});
@@ -163,9 +172,14 @@ export class CategorieRepository {
 	 */
 	async findAll(
 		options: PaginationOptions,
-		filters?: CategorieFilter
+		filters?: CategorieFilter,
+		utilisateurId?: number
 	): Promise<PaginatedResponse<CategorieResponseDTO>> {
 		const where: any = {};
+
+		if (utilisateurId !== undefined) {
+			where.utilisateurId = utilisateurId;
+		}
 
 		// Filtre textuel sur le nom et la description.
 		if (filters?.search) {
@@ -221,11 +235,15 @@ export class CategorieRepository {
 	/**
 	 * Vérifie si un nom de catégorie existe déjà pour un type donné.
 	 */
-	async nomExists(nom: string, type: TypeTransaction, exceptId?: number): Promise<boolean> {
+	async nomExists(nom: string, type: TypeTransaction, utilisateurId?: number, exceptId?: number): Promise<boolean> {
 		const where: any = {
 			nom,
 			type,
 		};
+
+		if (utilisateurId !== undefined) {
+			where.utilisateurId = utilisateurId;
+		}
 
 		if (exceptId) {
 			where.id = { not: exceptId };

@@ -41,7 +41,10 @@ export async function GET(
       return NextResponse.json({ erreur: validationId.error }, { status: 400 });
     }
 
-    const repartition = await dimeService.getRepartitionById(validationId.data);
+    const repartition = await dimeService.getRepartitionById(
+      validationId.data,
+      contexte.role !== 'ADMIN' ? contexte.userId : undefined
+    );
     return NextResponse.json(repartition, { status: 200 });
   } catch (error) {
     if (error instanceof Error && error.message.includes('introuvable')) {
@@ -121,7 +124,8 @@ export async function PUT(
     const repartition = await dimeService.updateRepartition(
       validationId.data,
       validationBody.data,
-      contexte.userId
+      contexte.userId,
+      contexte.role !== 'ADMIN' ? contexte.userId : undefined
     );
 
     return NextResponse.json(repartition, { status: 200 });

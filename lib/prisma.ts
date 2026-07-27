@@ -6,7 +6,6 @@
  */
 
 import { supabaseServer } from './supabase';
-
 type AnyRecord = Record<string, any>;
 
 type OrderInput = Record<string, 'asc' | 'desc'> | undefined;
@@ -468,6 +467,7 @@ const categorieDelegate = {
       est_systeme: args.data.estSysteme ?? false,
       actif: args.data.actif ?? true,
       parent_id: args.data.parentId ?? null,
+      utilisateur_id: args.data.utilisateurId ?? null,
     };
 
     const { data, error } = await supabaseServer
@@ -490,11 +490,14 @@ const categorieDelegate = {
   },
 
   async findUnique(args: AnyRecord): Promise<AnyRecord | null> {
-    const { data, error } = await supabaseServer
+    let query = supabaseServer
       .from('categories')
-      .select('*')
-      .eq('id', args.where.id)
-      .maybeSingle();
+      .select('*');
+
+    if (args.where.id !== undefined) query = query.eq('id', args.where.id);
+    if (args.where.utilisateurId !== undefined) query = query.eq('utilisateur_id', args.where.utilisateurId);
+
+    const { data, error } = await query.maybeSingle();
 
     if (error) throw error;
     if (!data) return null;
@@ -519,6 +522,7 @@ const categorieDelegate = {
     if (where.nom !== undefined) query = query.eq('nom', where.nom);
     if (where.type !== undefined) query = query.eq('type', where.type);
     if (where.actif !== undefined) query = query.eq('actif', where.actif);
+    if (where.utilisateurId !== undefined) query = query.eq('utilisateur_id', where.utilisateurId);
 
     const { data, error } = await query.limit(1).maybeSingle();
 
@@ -604,6 +608,8 @@ const categorieDelegate = {
       }
     }
 
+    if (where.utilisateurId !== undefined) query = query.eq('utilisateur_id', where.utilisateurId);
+
     const order = normalizeOrderBy(args.orderBy);
     if (order) {
       query = query.order(order.field, { ascending: order.ascending });
@@ -645,6 +651,8 @@ const categorieDelegate = {
     if (where.id?.not !== undefined) {
       query = query.neq('id', where.id.not);
     }
+
+    if (where.utilisateurId !== undefined) query = query.eq('utilisateur_id', where.utilisateurId);
 
     if (where.OR && Array.isArray(where.OR)) {
       const search = where.OR[0]?.nom?.contains ?? where.OR[1]?.description?.contains;
@@ -688,6 +696,7 @@ const evenementDelegate = {
           ? null
           : toDbTimestamp(args.data.dateFin) ?? args.data.dateFin,
       actif: args.data.actif ?? true,
+      utilisateur_id: args.data.utilisateurId ?? null,
     };
 
     const { data, error } = await supabaseServer
@@ -708,11 +717,14 @@ const evenementDelegate = {
   },
 
   async findUnique(args: AnyRecord): Promise<AnyRecord | null> {
-    const { data, error } = await supabaseServer
+    let query = supabaseServer
       .from('evenements')
-      .select('*')
-      .eq('id', args.where.id)
-      .maybeSingle();
+      .select('*');
+
+    if (args.where.id !== undefined) query = query.eq('id', args.where.id);
+    if (args.where.utilisateurId !== undefined) query = query.eq('utilisateur_id', args.where.utilisateurId);
+
+    const { data, error } = await query.maybeSingle();
 
     if (error) throw error;
     if (!data) return null;
@@ -770,6 +782,7 @@ const evenementDelegate = {
     }
 
     if (where.actif !== undefined) query = query.eq('actif', where.actif);
+    if (where.utilisateurId !== undefined) query = query.eq('utilisateur_id', where.utilisateurId);
 
     query = applyDateRangeFilter(query, 'date_debut', where.dateDebut);
 
@@ -800,11 +813,15 @@ const evenementDelegate = {
   },
 
   async count(args?: AnyRecord): Promise<number> {
+    console.log('🔍 [PRISMA] Début evenement.count');
+    console.log('🔍 [PRISMA] Args:', JSON.stringify(args));
+    
     let query = supabaseServer.from('evenements').select('*', { count: 'exact', head: true });
 
     const where = args?.where ?? {};
     if (where.nom !== undefined) query = query.eq('nom', where.nom);
     if (where.actif !== undefined) query = query.eq('actif', where.actif);
+    if (where.utilisateurId !== undefined) query = query.eq('utilisateur_id', where.utilisateurId);
     if (where.id?.not !== undefined) query = query.neq('id', where.id.not);
 
     if (where.OR && Array.isArray(where.OR)) {
@@ -814,8 +831,20 @@ const evenementDelegate = {
       }
     }
 
+    console.log('🔍 [PRISMA] Avant await query');
     const { count, error } = await query;
-    if (error) throw error;
+    console.log('🔍 [PRISMA] Après await query');
+    console.log('🔍 [PRISMA] Count:', count);
+    console.log('🔍 [PRISMA] Error:', error);
+    
+    if (error) {
+      console.error('🔥 [PRISMA] Erreur Supabase complète:');
+      console.error('🔥 Type:', typeof error);
+      console.error('🔥 Constructor:', error?.constructor?.name);
+      console.error('🔥 Props:', Object.getOwnPropertyNames(error));
+      console.error('🔥 Error complet:', JSON.stringify(error, null, 2));
+      throw error;
+    }
     return count ?? 0;
   },
 };
@@ -1063,7 +1092,13 @@ const repartitionDimeDelegate = {
 
     const where = args.where ?? {};
 
-    if (where.transactionId !== undefined) query = query.eq('transaction_id', where.transactionId);
+    if (where.transactionId !== undefined) {
+      if (typeof where.transactionId === 'object' && Array.isArray(where.transactionId.in)) {
+        query = query.in('transaction_id', where.transactionId.in);
+      } else {
+        query = query.eq('transaction_id', where.transactionId);
+      }
+    }
 
     query = applyDateRangeFilter(query, 'cree_le', where.creeLe);
 
@@ -1085,7 +1120,13 @@ const repartitionDimeDelegate = {
 
     const where = args?.where ?? {};
 
-    if (where.transactionId !== undefined) query = query.eq('transaction_id', where.transactionId);
+    if (where.transactionId !== undefined) {
+      if (typeof where.transactionId === 'object' && Array.isArray(where.transactionId.in)) {
+        query = query.in('transaction_id', where.transactionId.in);
+      } else {
+        query = query.eq('transaction_id', where.transactionId);
+      }
+    }
     query = applyDateRangeFilter(query, 'cree_le', where.creeLe);
 
     const { count, error } = await query;
@@ -1136,6 +1177,427 @@ const journalActionDelegate = {
   },
 };
 
+// ── Module Paudium : Cahiers ────────────────────────────────────────────────
+
+function normalizeCahier(row: AnyRecord): AnyRecord {
+  return {
+    id: row.id,
+    nom: row.nom,
+    prefixeCode: row.prefixe_code,
+    description: row.description,
+    actif: row.actif,
+    creeLe: toDateOrNull(row.cree_le),
+    utilisateurId: row.utilisateur_id,
+    evenementId: row.evenement_id,
+    evenement: row.evenement
+      ? {
+        id: row.evenement.id,
+        nom: row.evenement.nom,
+      }
+      : null,
+  };
+}
+
+async function getCahierCounts(cahierIds: number[]): Promise<Map<number, { enregistrements: number; montant: number }>> {
+  const result = new Map<number, { enregistrements: number; montant: number }>();
+
+  await Promise.all(
+    cahierIds.map(async (id) => {
+      const { data, error } = await supabaseServer
+        .from('enregistrements_cahier')
+        .select('montant')
+        .eq('cahier_id', id);
+
+      if (error) throw error;
+
+      const enregistrements = data?.length ?? 0;
+      const montant = (data ?? []).reduce((sum, item) => sum + (item.montant || 0), 0);
+
+      result.set(id, { enregistrements, montant });
+    })
+  );
+
+  return result;
+}
+
+async function attachCahierEvenements(rows: AnyRecord[]): Promise<AnyRecord[]> {
+  const evenementIds = Array.from(
+    new Set(
+      rows
+        .map((row) => row.evenement_id)
+        .filter((id): id is number => typeof id === 'number')
+    )
+  );
+
+  if (evenementIds.length === 0) {
+    return rows.map((row) => ({ ...row, evenement: null }));
+  }
+
+  const { data, error } = await supabaseServer
+    .from('evenements')
+    .select('id,nom')
+    .in('id', evenementIds);
+
+  if (error) throw error;
+
+  const evenementMap = new Map<number, AnyRecord>((data ?? []).map((e) => [e.id, e]));
+
+  return rows.map((row) => ({
+    ...row,
+    evenement: typeof row.evenement_id === 'number' ? evenementMap.get(row.evenement_id) ?? null : null,
+  }));
+}
+const cahierDelegate = {
+  async create(args: AnyRecord): Promise<AnyRecord> {
+    console.log('🔍 [CAHIER CREATE] Début création');
+    console.log('🔍 [CAHIER CREATE] args.data:', JSON.stringify(args.data, null, 2));
+    
+    const payload: AnyRecord = {
+      nom: args.data.nom,
+      prefixe_code: args.data.prefixeCode,
+      description: args.data.description ?? null,
+      actif: args.data.actif ?? true,
+      utilisateur_id: args.data.utilisateurId ?? null,
+      evenement_id: args.data.evenementId ?? null,
+    };
+
+    console.log('🔍 [CAHIER CREATE] Payload Supabase:', JSON.stringify(payload, null, 2));
+
+    const { data, error } = await supabaseServer
+      .from('cahiers')
+      .insert(payload)
+      .select('*')
+      .single();
+
+    if (error) {
+      console.error('🔥 [CAHIER CREATE] Erreur Supabase complète:');
+      console.error('🔥 Error object:', error);
+      console.error('🔥 Error message:', error.message);
+      console.error('🔥 Error details:', error.details);
+      console.error('🔥 Error hint:', error.hint);
+      console.error('🔥 Error code:', error.code);
+      
+      // Si le message est vide, on crée une erreur plus explicite
+      if (!error.message || error.message.trim() === '') {
+        throw new Error(`Erreur Supabase lors de la création du cahier: ${error.details || error.hint || 'Aucun détail fourni'}`);
+      }
+      
+      throw error;
+    }
+
+    console.log('✅ [CAHIER CREATE] Cahier créé avec succès:', data);
+
+    const [dataWithEvenement] = await attachCahierEvenements([data]);
+    const counts = await getCahierCounts([data.id]);
+    
+    const normalized = {
+      ...normalizeCahier(dataWithEvenement),
+      _count: { enregistrements: counts.get(data.id)?.enregistrements ?? 0 },
+      _sum: { montant: counts.get(data.id)?.montant ?? 0 },
+    };
+
+    return applySelect(normalized, args.select);
+  },
+
+  async findUnique(args: AnyRecord): Promise<AnyRecord | null> {
+    let query = supabaseServer.from('cahiers').select('*');
+
+    if (args.where.id !== undefined) query = query.eq('id', args.where.id);
+
+    const { data, error } = await query.maybeSingle();
+    if (error) throw error;
+    if (!data) return null;
+
+    const [dataWithEvenement] = await attachCahierEvenements([data]);
+    const counts = await getCahierCounts([data.id]);
+    
+    const normalized = {
+      ...normalizeCahier(dataWithEvenement),
+      _count: { enregistrements: counts.get(data.id)?.enregistrements ?? 0 },
+      _sum: { montant: counts.get(data.id)?.montant ?? 0 },
+    };
+
+    return applySelect(normalized, args.select);
+  },
+
+  async findMany(args: AnyRecord): Promise<AnyRecord[]> {
+    let query = supabaseServer.from('cahiers').select('*');
+    const where = args.where ?? {};
+
+    if (where.OR && Array.isArray(where.OR)) {
+      const search = where.OR[0]?.nom?.contains ?? where.OR[1]?.description?.contains;
+      if (search) {
+        query = query.or(`nom.ilike.%${search}%,description.ilike.%${search}%`);
+      }
+    }
+
+    if (where.actif !== undefined) query = query.eq('actif', where.actif);
+    if (where.utilisateurId !== undefined) query = query.eq('utilisateur_id', where.utilisateurId);
+    if (where.evenementId !== undefined) query = query.eq('evenement_id', where.evenementId);
+
+    const order = normalizeOrderBy(args.orderBy);
+    if (order) {
+      query = query.order(order.field, { ascending: order.ascending });
+    }
+
+    if (args.skip !== undefined && args.take !== undefined) {
+      query = query.range(args.skip, args.skip + args.take - 1);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    const rows = await attachCahierEvenements(data ?? []);
+    const counts = await getCahierCounts(rows.map((r) => r.id));
+
+    return rows.map((item) => {
+      const normalized = {
+        ...normalizeCahier(item),
+        _count: { enregistrements: counts.get(item.id)?.enregistrements ?? 0 },
+        _sum: { montant: counts.get(item.id)?.montant ?? 0 },
+      };
+      return applySelect(normalized, args.select);
+    });
+  },
+
+  async update(args: AnyRecord): Promise<AnyRecord> {
+    const payload: AnyRecord = {};
+
+    if (args.data.nom !== undefined) payload.nom = args.data.nom;
+    if (args.data.prefixeCode !== undefined) payload.prefixe_code = args.data.prefixeCode;
+    if (args.data.description !== undefined) payload.description = args.data.description;
+    if (args.data.actif !== undefined) payload.actif = args.data.actif;
+
+    if (args.data.evenement !== undefined) {
+      if (args.data.evenement.disconnect) payload.evenement_id = null;
+      if (args.data.evenement.connect?.id !== undefined) payload.evenement_id = args.data.evenement.connect.id;
+    }
+
+    if (args.data.evenementId !== undefined) {
+      payload.evenement_id = args.data.evenementId;
+    }
+
+    const { data, error } = await supabaseServer
+      .from('cahiers')
+      .update(payload)
+      .eq('id', args.where.id)
+      .select('*')
+      .single();
+
+    if (error) throw error;
+
+    const [dataWithEvenement] = await attachCahierEvenements([data]);
+    const counts = await getCahierCounts([data.id]);
+    
+    const normalized = {
+      ...normalizeCahier(dataWithEvenement),
+      _count: { enregistrements: counts.get(data.id)?.enregistrements ?? 0 },
+      _sum: { montant: counts.get(data.id)?.montant ?? 0 },
+    };
+
+    return applySelect(normalized, args.select);
+  },
+
+  async count(args?: AnyRecord): Promise<number> {
+    let query = supabaseServer.from('cahiers').select('*', { count: 'exact', head: true });
+    const where = args?.where ?? {};
+
+    if (where.actif !== undefined) query = query.eq('actif', where.actif);
+    if (where.utilisateurId !== undefined) query = query.eq('utilisateur_id', where.utilisateurId);
+    if (where.evenementId !== undefined) query = query.eq('evenement_id', where.evenementId);
+
+    if (where.OR && Array.isArray(where.OR)) {
+      const search = where.OR[0]?.nom?.contains ?? where.OR[1]?.description?.contains;
+      if (search) {
+        query = query.or(`nom.ilike.%${search}%,description.ilike.%${search}%`);
+      }
+    }
+
+    const { count, error } = await query;
+    if (error) throw error;
+    return count ?? 0;
+  },
+
+  async delete(args: AnyRecord): Promise<AnyRecord> {
+    const { data, error } = await supabaseServer
+      .from('cahiers')
+      .update({ actif: false })
+      .eq('id', args.where.id)
+      .select('*')
+      .single();
+
+    if (error) throw error;
+
+    const [dataWithEvenement] = await attachCahierEvenements([data]);
+    const counts = await getCahierCounts([data.id]);
+    
+    const normalized = {
+      ...normalizeCahier(dataWithEvenement),
+      _count: { enregistrements: counts.get(data.id)?.enregistrements ?? 0 },
+      _sum: { montant: counts.get(data.id)?.montant ?? 0 },
+    };
+
+    return applySelect(normalized, args.select);
+  },
+};
+
+// ── Module Paudium : Enregistrements ────────────────────────────────────────
+
+function normalizeEnregistrement(row: AnyRecord): AnyRecord {
+  return {
+    id: row.id,
+    cahierId: row.cahier_id,
+    code: row.code,
+    nomPersonne: row.nom_personne,
+    note: row.note,
+    montant: row.montant,
+    dateHeure: toDateOrNull(row.date_heure),
+    utilisateurId: row.utilisateur_id,
+    creeLe: toDateOrNull(row.cree_le),
+  };
+}
+
+const enregistrementsCahierDelegate = {
+  async create(args: AnyRecord): Promise<AnyRecord> {
+    const payload: AnyRecord = {
+      cahier_id: args.data.cahierId,
+      code: args.data.code,
+      nom_personne: args.data.nomPersonne,
+      note: args.data.note ?? null,
+      montant: args.data.montant,
+      date_heure: toDbTimestamp(args.data.dateHeure) ?? new Date().toISOString(),
+      utilisateur_id: args.data.utilisateurId,
+    };
+
+    const { data, error } = await supabaseServer
+      .from('enregistrements_cahier')
+      .insert(payload)
+      .select('*')
+      .single();
+
+    if (error) throw error;
+
+    return applySelect(normalizeEnregistrement(data), args.select);
+  },
+
+  async findUnique(args: AnyRecord): Promise<AnyRecord | null> {
+    let query = supabaseServer.from('enregistrements_cahier').select('*');
+
+    if (args.where.id !== undefined) query = query.eq('id', args.where.id);
+
+    const { data, error } = await query.maybeSingle();
+    if (error) throw error;
+    if (!data) return null;
+
+    return applySelect(normalizeEnregistrement(data), args.select);
+  },
+
+  async findMany(args: AnyRecord): Promise<AnyRecord[]> {
+    let query = supabaseServer.from('enregistrements_cahier').select('*');
+    const where = args.where ?? {};
+
+    if (where.cahierId !== undefined) query = query.eq('cahier_id', where.cahierId);
+
+    if (where.OR && Array.isArray(where.OR)) {
+      const search = where.OR[0]?.nomPersonne?.contains ?? where.OR[1]?.code?.contains;
+      if (search) {
+        query = query.or(`nom_personne.ilike.%${search}%,code.ilike.%${search}%`);
+      }
+    }
+
+    if (where.dateHeure?.gte !== undefined) {
+      query = query.gte('date_heure', toDbTimestamp(where.dateHeure.gte));
+    }
+    if (where.dateHeure?.lte !== undefined) {
+      query = query.lte('date_heure', toDbTimestamp(where.dateHeure.lte));
+    }
+
+    const order = normalizeOrderBy(args.orderBy);
+    if (order) {
+      query = query.order(order.field, { ascending: order.ascending });
+    }
+
+    if (args.skip !== undefined && args.take !== undefined) {
+      query = query.range(args.skip, args.skip + args.take - 1);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    return (data ?? []).map((item) => applySelect(normalizeEnregistrement(item), args.select));
+  },
+
+  async update(args: AnyRecord): Promise<AnyRecord> {
+    const payload: AnyRecord = {};
+
+    if (args.data.nomPersonne !== undefined) payload.nom_personne = args.data.nomPersonne;
+    if (args.data.note !== undefined) payload.note = args.data.note;
+    if (args.data.montant !== undefined) payload.montant = args.data.montant;
+    if (args.data.dateHeure !== undefined) {
+      payload.date_heure = toDbTimestamp(args.data.dateHeure);
+    }
+
+    const { data, error } = await supabaseServer
+      .from('enregistrements_cahier')
+      .update(payload)
+      .eq('id', args.where.id)
+      .select('*')
+      .single();
+
+    if (error) throw error;
+
+    return applySelect(normalizeEnregistrement(data), args.select);
+  },
+
+  async count(args?: AnyRecord): Promise<number> {
+    let query = supabaseServer.from('enregistrements_cahier').select('*', { count: 'exact', head: true });
+    const where = args?.where ?? {};
+
+    if (where.cahierId !== undefined) query = query.eq('cahier_id', where.cahierId);
+
+    const { count, error } = await query;
+    if (error) throw error;
+    return count ?? 0;
+  },
+
+  async delete(args: AnyRecord): Promise<AnyRecord> {
+    const { data, error } = await supabaseServer
+      .from('enregistrements_cahier')
+      .delete()
+      .eq('id', args.where.id)
+      .select('*')
+      .single();
+
+    if (error) throw error;
+
+    return applySelect(normalizeEnregistrement(data), args.select);
+  },
+
+  async aggregate(args: AnyRecord): Promise<AnyRecord> {
+    let query = supabaseServer.from('enregistrements_cahier').select('montant');
+    const where = args.where ?? {};
+
+    if (where.cahierId !== undefined) query = query.eq('cahier_id', where.cahierId);
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    const montants = (data ?? []).map((item) => item.montant ?? 0);
+    const sum = montants.reduce((acc, val) => acc + val, 0);
+    const avg = montants.length > 0 ? sum / montants.length : 0;
+    const max = montants.length > 0 ? Math.max(...montants) : 0;
+    const min = montants.length > 0 ? Math.min(...montants) : 0;
+
+    return {
+      _count: { id: montants.length },
+      _sum: { montant: sum },
+      _avg: { montant: avg },
+      _max: { montant: max },
+      _min: { montant: min },
+    };
+  },
+};
+
 const prisma: any = {
   utilisateur: utilisateurDelegate,
   categorie: categorieDelegate,
@@ -1143,13 +1605,12 @@ const prisma: any = {
   transaction: transactionDelegate,
   repartitionDime: repartitionDimeDelegate,
   journalAction: journalActionDelegate,
+  cahier: cahierDelegate,
+  enregistrements_cahier: enregistrementsCahierDelegate,
   async $transaction<T>(callback: (tx: any) => Promise<T>): Promise<T> {
-    // Supabase JS n'expose pas de transaction multi-requetes cote client.
-    // Cette couche execute le callback en mode sequence pour conserver l'API actuelle.
     return callback(prisma);
   },
 };
-
 void toCamelCase;
 
 export default prisma;

@@ -60,6 +60,7 @@ export interface PaginatedResponse<T> {
 
 export interface RepartitionDimeFilter {
   transactionId?: number;
+  utilisateurId?: number;
   dateDe?: Date;
   dateJusqua?: Date;
   orderBy?: 'creeLe' | 'totalDime';

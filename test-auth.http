@@ -20,10 +20,10 @@
 ###############################################################################
 
 @BASE_URL = http://localhost:3001
-@EMAIL_TEST = tresorier.test@eglise.com
+@EMAIL_TEST = raphaelkouessan1er@gmail.com
 @PASSWORD = Raph123456789!
 @PASSWORD_CONFIRM = Raph123456789!
-@NOM_TEST = AVINOU Samuel
+@NOM_TEST = KOUESSAN Raphaël
 
 ###############################################################################
 # 1. TEST D'INSCRIPTION - CRÉER UN NOUVEL UTILISATEUR

@@ -44,6 +44,8 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           {/* Sur mobile, page-wrapper → margin-left: 0 */}
           <div className="page-wrapper-sub flex flex-col w-full dark:bg-darkgray">
 
+
+
             {/* En-tête sticky (hamburger + profil + déconnexion) */}
             <HeaderLayout />
 

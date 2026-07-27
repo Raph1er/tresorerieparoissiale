@@ -50,7 +50,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
 
     // 4) Lecture via service.
-    const evenement = await evenementService.getEvenementById(id);
+    const evenement = await evenementService.getEvenementById(
+      id,
+      contexte.role !== 'ADMIN' ? contexte.userId : undefined
+    );
     return NextResponse.json(evenement, { status: 200 });
   } catch (error) {
     if (error instanceof Error && error.message.includes('introuvable')) {
@@ -100,7 +103,8 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
     const evenementMiseAJour = await evenementService.updateEvenement(
       id,
       validationBody.data,
-      contexte.userId
+      contexte.userId,
+      contexte.role !== 'ADMIN' ? contexte.userId : undefined
     );
 
     return NextResponse.json(evenementMiseAJour, { status: 200 });

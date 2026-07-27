@@ -17,7 +17,7 @@ enum TypeTransaction {
   SORTIE
 }
 
-/// Statut d’une dépense (contrôle interne)
+/// Statut d'une dépense (contrôle interne)
 enum StatutValidation {
   BROUILLON
   EN_ATTENTE
@@ -52,6 +52,14 @@ model Utilisateur {
   transactions  Transaction[]
   validations   ValidationDepense[]
   journaux      JournalAction[]
+  
+  // Relations pour le module Paudium
+  cahiers            cahier[]                  @relation("cahier_utilisateur")
+  enregistrements    enregistrements_cahier[]  @relation("enreg_utilisateur")
+  
+  // Relations pour Catégories et Événements
+  categories         Categorie[]               @relation("utilisateur_categories")
+  evenements         Evenement[]               @relation("utilisateur_evenements")
 }
 
 //////////////////////////////////////////////////////
@@ -65,6 +73,9 @@ model Categorie {
   description   String?
   estSysteme    Boolean  @default(false) 
   actif         Boolean  @default(true)
+
+  utilisateurId Int?    
+  utilisateur   Utilisateur? @relation("utilisateur_categories", fields: [utilisateurId], references: [id])
 
   creeLe        DateTime @default(now())
 
@@ -88,9 +99,14 @@ model Evenement {
   dateFin       DateTime?
 
   actif         Boolean  @default(true)
+  utilisateurId Int?
+  utilisateur   Utilisateur? @relation("utilisateur_evenements", fields: [utilisateurId], references: [id])
   creeLe        DateTime @default(now())
 
   transactions  Transaction[]
+  
+  // Relation pour le module Paudium
+  cahiers       cahier[] @relation("cahier_evenement")
 }
 
 //////////////////////////////////////////////////////
@@ -186,7 +202,7 @@ model RegleRepartitionDime {
 }
 
 //////////////////////////////////////////////////////
-// JOURNAL D’AUDIT (traçabilité complète)
+// JOURNAL D'AUDIT (traçabilité complète)
 //////////////////////////////////////////////////////
 
 model JournalAction {
@@ -200,4 +216,48 @@ model JournalAction {
   adresseIP     String?
 
   creeLe        DateTime @default(now())
+}
+
+// ── Module Paudium : Cahiers ────────────────────────────────────────────────
+
+model cahier {
+  id            Int       @id @default(autoincrement())
+  nom           String    @db.VarChar(255)
+  prefixeCode   String    @map("prefixe_code") @db.VarChar(20)
+  description   String?   @db.Text
+  actif         Boolean   @default(true)
+  creeLe        DateTime  @default(now()) @map("cree_le")
+  
+  // Relations
+  utilisateurId Int?      @map("utilisateur_id")
+  utilisateur   Utilisateur? @relation("cahier_utilisateur", fields: [utilisateurId], references: [id])
+  
+  evenementId   Int?      @map("evenement_id")
+  evenement     Evenement? @relation("cahier_evenement", fields: [evenementId], references: [id])
+  
+  // Relation inverse vers les enregistrements
+  enregistrements enregistrements_cahier[]
+
+  @@map("cahiers")
+}
+
+// ── Module Paudium : Enregistrements ────────────────────────────────────────
+
+model enregistrements_cahier {
+  id           Int       @id @default(autoincrement())
+  cahierId     Int       @map("cahier_id")
+  code         String    @unique @db.VarChar(50)
+  nomPersonne  String    @map("nom_personne") @db.VarChar(255)
+  note         String?   @db.Text
+  montant      Float
+  dateHeure    DateTime  @default(now()) @map("date_heure")
+  creeLe       DateTime  @default(now()) @map("cree_le")
+  
+  // Relations
+  cahier       cahier    @relation(fields: [cahierId], references: [id], onDelete: Cascade)
+  
+  utilisateurId Int      @map("utilisateur_id")
+  utilisateur   Utilisateur @relation("enreg_utilisateur", fields: [utilisateurId], references: [id])
+
+  @@map("enregistrements_cahier")
 }

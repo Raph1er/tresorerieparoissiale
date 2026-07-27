@@ -247,13 +247,16 @@ export class TransactionRepository {
     /**
      * Récupère une transaction par son ID.
      */
-    async findById(id: number): Promise<TransactionResponseDTO | null> {
+    async findById(id: number, utilisateurId?: number): Promise<TransactionResponseDTO | null> {
         const transaction = await supabaseDb.transaction.findUnique({
             where: { id },
             select: this.selectTransaction,
         });
 
         if (!transaction) return null;
+        if (utilisateurId !== undefined && transaction.utilisateurId !== utilisateurId) {
+            return null;
+        }
 
         return versTransactionResponseDTO(transaction as TransactionDbPayload);
     }
@@ -330,6 +333,17 @@ export class TransactionRepository {
             where: { transactionId: id },
         });
         return count > 0;
+    }
+
+    async isOwnedByUtilisateur(id: number, utilisateurId: number): Promise<boolean> {
+        const transaction = await supabaseDb.transaction.findUnique({
+            where: { id },
+            select: {
+                utilisateurId: true,
+            },
+        });
+
+        return Boolean(transaction && transaction.utilisateurId === utilisateurId);
     }
 
     /**

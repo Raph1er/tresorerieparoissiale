@@ -19,6 +19,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button, Label, TextInput } from "flowbite-react";
 import Image from "next/image";
+import { Icon } from "@iconify/react";
 import { getAuthToken, isTokenExpired, setSession } from "@/lib/client-auth";
 import Logo from "@/components/layout/Logo";
 
@@ -40,6 +41,7 @@ export default function LoginPageClient() {
 
   const [email, setEmail] = useState("");
   const [motDePasse, setMotDePasse] = useState("");
+  const [motDePasseVisible, setMotDePasseVisible] = useState(false);
   const [chargement, setChargement] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
   const [messageInfo, setMessageInfo] = useState<string | null>(null);
@@ -174,16 +176,29 @@ export default function LoginPageClient() {
                 <div className="mb-2 block">
                   <Label htmlFor="motDePasse" value="Mot de passe" className="text-sky-400" />
                 </div>
-                <TextInput
-                  id="motDePasse"
-                  type="password"
-                  placeholder="••••••••"
-                  required
-                  autoComplete="current-password"
-                  value={motDePasse}
-                  onChange={(event) => setMotDePasse(event.target.value)}
-                  className="form-control form-rounded-xl [&_input]:bg-slate-900/85 [&_input]:text-slate-50 [&_input]:placeholder:text-slate-300 [&_input]:caret-slate-50"
-                />
+                <div className="relative">
+                  <TextInput
+                    id="motDePasse"
+                    type={motDePasseVisible ? "text" : "password"}
+                    placeholder="••••••••"
+                    required
+                    autoComplete="current-password"
+                    value={motDePasse}
+                    onChange={(event) => setMotDePasse(event.target.value)}
+                    className="form-control form-rounded-xl [&_input]:bg-slate-900/85 [&_input]:pr-11 [&_input]:text-slate-50 [&_input]:placeholder:text-slate-300 [&_input]:caret-slate-50"
+                  />
+                  <button
+                    type="button"
+                    aria-label={motDePasseVisible ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                    onClick={() => setMotDePasseVisible((current) => !current)}
+                    className="absolute inset-y-0 right-0 z-10 flex items-center px-3 text-slate-300 transition hover:text-white"
+                  >
+                    <Icon
+                      icon={motDePasseVisible ? "solar:eye-closed-line-duotone" : "solar:eye-line-duotone"}
+                      height={18}
+                    />
+                  </button>
+                </div>
               </div>
 
               {erreur && (

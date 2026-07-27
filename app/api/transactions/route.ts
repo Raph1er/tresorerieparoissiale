@@ -48,6 +48,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     const { page, limit, ...filters } = validationQuery.data;
 
+    if (contexte.role !== 'ADMIN') {
+      if (filters.utilisateurId !== undefined && filters.utilisateurId !== contexte.userId) {
+        return NextResponse.json(
+          { erreur: 'Accès non autorisé au filtre utilisateurId' },
+          { status: 403 }
+        );
+      }
+      filters.utilisateurId = contexte.userId;
+    }
+
     // 4) Récupération via service.
     const resultat = await transactionService.findMany({ page, limit }, filters);
 

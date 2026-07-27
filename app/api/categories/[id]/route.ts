@@ -49,7 +49,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 		}
 
 		// 4) Lecture via service.
-		const categorie = await categorieService.getCategorieById(id);
+		const categorie = await categorieService.getCategorieById(
+			id,
+			contexte.role !== 'ADMIN' ? contexte.userId : undefined
+		);
 		return NextResponse.json(categorie, { status: 200 });
 	} catch (error) {
 		if (error instanceof Error && error.message.includes('introuvable')) {
@@ -98,7 +101,8 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
 		const categorieMiseAJour = await categorieService.updateCategorie(
 			id,
 			validationBody.data,
-			contexte.userId
+			contexte.userId,
+			contexte.role !== 'ADMIN' ? contexte.userId : undefined
 		);
 
 		return NextResponse.json(categorieMiseAJour, { status: 200 });

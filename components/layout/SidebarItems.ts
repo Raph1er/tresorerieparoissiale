@@ -84,6 +84,13 @@ const SidebarContent: MenuItem[] = [
         id: "evenements",
         url: "/dashboard/evenements",
       },
+
+            {
+        name: "Paudium", // 🎯 NOUVEAU MENU
+        icon: "solar:notebook-bookmark-line-duotone", // Icône de cahier
+        id: "paudium",
+        url: "/dashboard/paudium",
+      },
       {
         name: "Rapports",
         icon: "solar:chart-square-line-duotone",

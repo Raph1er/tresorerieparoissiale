@@ -80,6 +80,19 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 			return NextResponse.json({ erreur: validation.error }, { status: 400 });
 		}
 
+		if (contexte.role !== 'ADMIN') {
+			if (
+				validation.data.utilisateurId !== undefined &&
+				validation.data.utilisateurId !== contexte.userId
+			) {
+				return NextResponse.json(
+					{ erreur: 'Accès non autorisé au filtre utilisateurId' },
+					{ status: 403 }
+				);
+			}
+			validation.data.utilisateurId = contexte.userId;
+		}
+
 		const rapport = await rapportService.getRapportGlobal(validation.data);
 		return NextResponse.json(rapport, { status: 200 });
 	} catch (error) {

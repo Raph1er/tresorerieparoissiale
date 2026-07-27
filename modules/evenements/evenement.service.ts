@@ -32,7 +32,7 @@ export class EvenementService {
     }
 
     // Le nom doit rester unique.
-    const nomDejaUtilise = await evenementRepository.nomExists(nomNettoye);
+    const nomDejaUtilise = await evenementRepository.nomExists(nomNettoye, createdById);
     if (nomDejaUtilise) {
       throw new Error(`L'évènement "${nomNettoye}" existe déjà`);
     }
@@ -51,6 +51,7 @@ export class EvenementService {
       ...data,
       nom: nomNettoye,
       description: data.description?.trim() || undefined,
+      utilisateurId: createdById,
     });
 
     await logger.log(
@@ -65,8 +66,8 @@ export class EvenementService {
   /**
    * Retourne un évènement par ID.
    */
-  async getEvenementById(id: number): Promise<EvenementResponseDTO> {
-    const evenement = await evenementRepository.findById(id, true);
+  async getEvenementById(id: number, utilisateurId?: number): Promise<EvenementResponseDTO> {
+    const evenement = await evenementRepository.findById(id, utilisateurId, true);
     if (!evenement) {
       throw new Error(`Évènement avec l'ID ${id} introuvable`);
     }
@@ -77,20 +78,24 @@ export class EvenementService {
   /**
    * Retourne la liste paginée des évènements.
    */
-  async getAllEvenements(
-    options: PaginationOptions,
-    filters?: EvenementFilter
-  ): Promise<PaginatedResponse<EvenementResponseDTO>> {
-    if (options.page < 1) {
-      throw new Error('Le numéro de page doit être supérieur ou égal à 1');
-    }
+async getAllEvenements(
+  options: PaginationOptions,
+  filters?: EvenementFilter,
+  utilisateurId?: number
+): Promise<PaginatedResponse<EvenementResponseDTO>> {
 
-    if (options.limit < 1 || options.limit > 100) {
-      throw new Error('La limite doit être comprise entre 1 et 100');
-    }
+  console.log("Avant repository.findAll");
 
-    return evenementRepository.findAll(options, filters);
-  }
+  const resultat = await evenementRepository.findAll(
+    options,
+    filters,
+    utilisateurId
+  );
+
+  console.log("Après repository.findAll");
+
+  return resultat;
+}
 
   /**
    * Met à jour un évènement.
@@ -98,9 +103,10 @@ export class EvenementService {
   async updateEvenement(
     id: number,
     data: UpdateEvenementDTO,
-    updatedById: number
+    updatedById: number,
+    utilisateurId?: number
   ): Promise<EvenementResponseDTO> {
-    const evenementExistant = await evenementRepository.findById(id, true);
+    const evenementExistant = await evenementRepository.findById(id, utilisateurId, true);
     if (!evenementExistant) {
       throw new Error(`Évènement avec l'ID ${id} introuvable`);
     }
@@ -112,7 +118,7 @@ export class EvenementService {
         throw new Error("Le nom de l'évènement ne peut pas être vide");
       }
 
-      const nomExiste = await evenementRepository.nomExists(nomNettoye, id);
+      const nomExiste = await evenementRepository.nomExists(nomNettoye, utilisateurId, id);
       if (nomExiste) {
         throw new Error(`L'évènement "${nomNettoye}" existe déjà`);
       }
@@ -132,11 +138,15 @@ export class EvenementService {
       }
     }
 
-    const evenementMiseAJour = await evenementRepository.update(id, {
-      ...data,
-      nom: nomNettoye,
-      description: data.description !== undefined ? data.description.trim() : undefined,
-    });
+    const evenementMiseAJour = await evenementRepository.update(
+      id,
+      {
+        ...data,
+        nom: nomNettoye,
+        description: data.description !== undefined ? data.description.trim() : undefined,
+      },
+      utilisateurId
+    );
 
     await logger.log(
       'EVENT_UPDATED',
@@ -151,7 +161,7 @@ export class EvenementService {
    * Supprime (logiquement) un évènement.
    */
   async deleteEvenement(id: number, deletedById: number): Promise<EvenementResponseDTO> {
-    const evenement = await evenementRepository.findById(id, true);
+    const evenement = await evenementRepository.findById(id, undefined, true);
     if (!evenement) {
       throw new Error(`Évènement avec l'ID ${id} introuvable`);
     }
