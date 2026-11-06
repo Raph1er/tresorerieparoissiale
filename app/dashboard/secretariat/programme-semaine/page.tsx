@@ -233,7 +233,7 @@ export default function ProgrammeSemainePage() {
     setSucces(null);
   }
 
-  async function enregistrerProgramme(reamenerAuDebut = false): Promise<void> {
+  async function enregistrerProgramme(): Promise<void> {
     if (!programme || !champsModifies) return;
 
     const valeurs = Object.fromEntries(
@@ -255,11 +255,7 @@ export default function ProgrammeSemainePage() {
       setProgramme(actualise);
       setValeursInitiales(actualise.valeurs);
       setSucces("Le programme a été enregistré.");
-      if (reamenerAuDebut && estAdministrateur) {
-        window.requestAnimationFrame(() => {
-          formulaireRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-        });
-      }
+      window.requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "smooth" }));
     } catch (error) {
       setErreur(messageErreur(error, "La sauvegarde du programme a échoué."));
     } finally {
@@ -404,13 +400,20 @@ export default function ProgrammeSemainePage() {
           ) : null}
           <label className="block min-w-0 space-y-1.5 text-sm font-semibold text-dark dark:text-white">
             Semaine (choisissez le lundi)
-            <input
-              type="date"
-              value={dateDebut}
-              onChange={changerDate}
-              disabled={chargementTemplates || templates.length === 0 || ouvertureEnCours || associationEnCours || sauvegardeEnCours}
-              className="w-full rounded-xl border border-border bg-white px-3 py-3 text-sm font-normal text-dark outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-60 dark:border-darkborder dark:bg-darkgray dark:text-white"
-            />
+            <span className="relative block">
+              <input
+                type="date"
+                value={dateDebut}
+                onChange={changerDate}
+                disabled={chargementTemplates || templates.length === 0 || ouvertureEnCours || associationEnCours || sauvegardeEnCours}
+                className="w-full rounded-xl border border-border bg-white px-3 py-3 pr-11 text-sm font-normal text-dark outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-60 dark:border-darkborder dark:bg-darkgray dark:text-white"
+              />
+              <CalendarDays
+                size={18}
+                aria-hidden="true"
+                className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-primary"
+              />
+            </span>
           </label>
           {!estAdministrateur && apercuSemaine && !("erreur" in apercuSemaine) ? (
             <div className="flex min-w-0 flex-col justify-center rounded-xl border border-border bg-lightgray/30 px-4 py-3 dark:border-darkborder dark:bg-dark">
@@ -544,6 +547,8 @@ export default function ProgrammeSemainePage() {
                   {section.champs.map((champ) => {
                     const editable = champ.modifiablePar === role && !champ.calcule;
                     const valeur = obtenirValeurAffichee(champ.valueKey);
+                    const estDejaEnregistre = Boolean(valeursInitiales[champ.valueKey]?.trim())
+                      && valeur === valeursInitiales[champ.valueKey];
                     const estTheme = champ.cle === "Theme";
                     const estTexteLong = estTheme
                       || ["Texte_Biblique", "Texte_Biblique_1", "Texte_Biblique_2"].includes(champ.cle);
@@ -573,9 +578,11 @@ export default function ProgrammeSemainePage() {
                               value={valeur}
                               onChange={(event) => modifierValeur(champ.valueKey, event.target.value)}
                               placeholder="À renseigner"
-                              className={`min-h-20 w-full resize-y rounded-xl border border-border bg-white px-3 py-2.5 text-sm font-normal outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-darkborder dark:bg-darkgray dark:text-white ${
-                                estTheme ? "text-center" : ""
-                              }`}
+                              className={`min-h-20 w-full resize-y rounded-xl border px-3 py-2.5 text-sm font-normal outline-none transition placeholder:italic ${
+                                estDejaEnregistre
+                                  ? "border-emerald-200 bg-emerald-50/70 text-emerald-950 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/20 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-50"
+                                  : "border-border bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-darkborder dark:bg-darkgray dark:text-white"
+                              } ${estTheme ? "text-center" : ""}`}
                             />
                           ) : (
                             <input
@@ -584,7 +591,11 @@ export default function ProgrammeSemainePage() {
                               value={valeur}
                               onChange={(event) => modifierValeur(champ.valueKey, event.target.value)}
                               placeholder="Nom de l’officiant"
-                              className="min-h-11 w-full rounded-xl border border-border bg-white px-3 py-2.5 text-sm font-normal outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-darkborder dark:bg-darkgray dark:text-white"
+                              className={`min-h-11 w-full rounded-xl border px-3 py-2.5 text-sm font-normal outline-none transition placeholder:italic ${
+                                estDejaEnregistre
+                                  ? "border-emerald-200 bg-emerald-50/70 text-emerald-950 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/20 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-50"
+                                  : "border-border bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-darkborder dark:bg-darkgray dark:text-white"
+                              }`}
                             />
                           )
                         ) : (
@@ -622,7 +633,7 @@ export default function ProgrammeSemainePage() {
             <div className="flex justify-end border-t border-border pt-4 dark:border-darkborder">
               <button
                 type="button"
-                onClick={() => void enregistrerProgramme(estAdministrateur)}
+                onClick={() => void enregistrerProgramme()}
                 disabled={!champsModifies || sauvegardeEnCours}
                 className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
               >
