@@ -24,9 +24,7 @@ import { getAuthToken, isTokenExpired, setSession } from "@/lib/client-auth";
 import Logo from "@/components/layout/Logo";
 
 const messageBlocks = [
-  "Gérez l'administration de votre paroisse en toute simplicité.",
-  "Suivez le solde de la paroisse, les dernières opérations et les priorités de gestion depuis un seul écran.",
-  "Contrôle des entrées, sorties et justificatifs avec pagination.",
+  "Bienvenue dans la gestion complète de l'administration de votre paroisse ! 😍",
 ];
 
 export default function LoginPageClient() {
@@ -146,7 +144,7 @@ export default function LoginPageClient() {
             </div>
 
             <p className="text-sm text-center text-bodytext font-medium">
-              Connectez-vous à votre espace financier
+              Connectez-vous avec les données sécurisées du compte !
             </p>
 
             {messageInfo && (

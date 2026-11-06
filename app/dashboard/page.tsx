@@ -275,7 +275,7 @@ export default function DashboardPage() {
             </div>
 
             <p className="max-w-2xl text-bodytext leading-7">
-              Suivez le solde de la paroisse, les dernières opérations et les priorités de gestion depuis un seul écran.
+             Gérez la trésorerie de votre paroisse, suivez les entrées et les sorties, et organisez les programmes du secrétariat depuis un espace unique.
             </p>
           </div>
 
