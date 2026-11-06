@@ -28,6 +28,9 @@ export type TypeAction =
   | 'USER_UPDATED'
   | 'USER_DELETED'
   | 'USER_DISABLED'
+  | 'USER_ENABLED'
+  | 'USER_PERMISSIONS_UPDATED'
+  | 'USER_ROLE_UPDATED'
   | 'ERROR'
   // Gestion des catégories
   | 'CATEGORY_CREATED'

@@ -19,12 +19,17 @@ import SidebarContent from "./SidebarItems";
 import NavItems from "./NavItems";
 import NavCollapse from "./NavCollapse";
 import Logo from "./Logo";
+import { usePermissionContext } from "@/components/dashboard/PermissionContext";
+import { filtrerMenuParPermissions } from "./authorized-menu";
 
 interface MobileSidebarContentProps {
   onNavigate?: () => void;
 }
 
 const MobileSidebarContent: React.FC<MobileSidebarContentProps> = ({ onNavigate }) => {
+  const user = usePermissionContext();
+  const visibleMenu = filtrerMenuParPermissions(SidebarContent, user);
+
   return (
     <div>
       {/* Logo affiché en haut du tiroir */}
@@ -42,7 +47,7 @@ const MobileSidebarContent: React.FC<MobileSidebarContentProps> = ({ onNavigate 
           <Sidebar.Items className="px-5">
             <Sidebar.ItemGroup className="sidebar-nav hide-menu">
 
-              {SidebarContent.map((section, index) => (
+              {visibleMenu.map((section, index) => (
                 <div className="caption" key={section.heading ?? index}>
                   <h5 className="text-link dark:text-white/70 font-semibold leading-6 tracking-widest text-xs pb-2 uppercase">
                     {section.heading}

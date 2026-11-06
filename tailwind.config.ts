@@ -18,7 +18,7 @@ import type { Config } from "tailwindcss";
 // flowbite-react v0.10.x fournit un helper "tailwind" qui expose :
 //   .content() → les chemins de ses propres composants (pour tree-shaking)
 //   .plugin()  → le plugin PostCSS qui génère les styles flowbite
-const flowbite = require("flowbite-react/tailwind");
+import flowbite from "flowbite-react/tailwind";
 
 const config: Config = {
   // ── Mode sombre ─────────────────────────────────────────────────────────────

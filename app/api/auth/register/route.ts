@@ -9,6 +9,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import supabaseDb from '@/lib/supabase-db';
 import { hasherMotDePasse, genererToken } from '@/lib/auth';
 import logger from '@/lib/logger';
+import { validerAuthentification, validerRole } from '@/middleware/auth.middleware';
+import type { RoleUtilisateur } from '@/types/enums';
 
 /**
  * Interface pour les données d'inscription
@@ -39,7 +41,11 @@ const MIN_PASSWORD_LENGTH = 8;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // Rôles autorisés dans le système
-const ROLES_AUTORISES = ['ADMIN', 'TRESORIER', 'RESPONSABLE', 'AUDITEUR'];
+const ROLES_AUTORISES: RoleUtilisateur[] = ['ADMIN', 'TRESORIER', 'RESPONSABLE', 'AUDITEUR'];
+
+function estRoleAutorise(role: string): role is RoleUtilisateur {
+  return ROLES_AUTORISES.some((roleAutorise) => roleAutorise === role);
+}
 
 /**
  * Fonction POST pour l'inscription
@@ -48,6 +54,16 @@ const ROLES_AUTORISES = ['ADMIN', 'TRESORIER', 'RESPONSABLE', 'AUDITEUR'];
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
+    const contexte = await validerAuthentification(request);
+    if (contexte instanceof NextResponse) {
+      return contexte;
+    }
+
+    const erreurRole = validerRole(contexte, ['ADMIN']);
+    if (erreurRole) {
+      return erreurRole;
+    }
+
     // Récupère le corps de la requête en JSON
     // Le client doit envoyer { nom, email, motDePasse, confirmationMotDePasse, role }
     const body: Partial<DataInscription> = await request.json();
@@ -156,7 +172,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // ============================================================
 
     // Vérifie que le rôle est parmi les rôles autorisés du système
-    if (!ROLES_AUTORISES.includes(roleNormalise)) {
+    if (!estRoleAutorise(roleNormalise)) {
       return NextResponse.json(
         {
           erreur: `Rôle invalide. Rôles autorisés: ${ROLES_AUTORISES.join(
@@ -213,7 +229,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         // Hash du mot de passe
         motDePasse: motDePasseHashe,
         // Rôle de l'utilisateur
-        role: roleNormalise as any,
+        role: roleNormalise,
         // L'utilisateur est actif par défaut lors de la création
         actif: true,
       },
@@ -242,7 +258,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     await logger.log(
       'USER_CREATED',
       `Nouvel utilisateur créé: ${emailNormalise} (Rôle: ${roleNormalise})`,
-      nouvelUtilisateur.id
+      contexte.userId,
+      logger.extraireAdresseIP(request)
     );
 
     // ============================================================

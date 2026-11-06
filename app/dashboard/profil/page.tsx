@@ -172,7 +172,7 @@ export default function ProfilePage() {
                 body: JSON.stringify(payload),
             });
 
-            // Mettre à jour le localStorage avec les nouvelles données
+            // Mettre à jour le profil de session avec les nouvelles données
             const updatedUser: AuthUser = {
                 id: response.id,
                 nom: response.nom,

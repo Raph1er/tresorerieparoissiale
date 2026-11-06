@@ -7,13 +7,17 @@
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 
-// Récupération de la clé secrète depuis les variables d'environnement
-// Cette clé est utilisée pour signer et vérifier les tokens JWT
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
-
 // Durée de validité du token (en heures)
 // Le token expirera après cette période, forçant l'utilisateur à se reconnecter
 const TOKEN_EXPIRATION = '24h';
+
+function obtenirCleJwt(): string {
+  const secret = process.env.JWT_SECRET;
+  if (!secret || Buffer.byteLength(secret, 'utf8') < 32) {
+    throw new Error('JWT_SECRET doit contenir au moins 32 octets.');
+  }
+  return secret;
+}
 
 /**
  * Interface pour le payload du JWT
@@ -72,7 +76,7 @@ export async function verifierMotDePasse(
 export function genererToken(payload: JWTPayload): string {
   // Signe le payload avec la clé secrète et l'expiration définie
   // Le token contient les informations de l'utilisateur de manière sécurisée
-  return jwt.sign(payload, JWT_SECRET, {
+  return jwt.sign(payload, obtenirCleJwt(), {
     // Définit la durée de vie du token
     expiresIn: TOKEN_EXPIRATION,
     // Algorithme de signature utilisé (HS256 = HMAC with SHA-256)
@@ -90,7 +94,9 @@ export function verifierToken(token: string): JWTPayload | null {
   try {
     // Vérifie la signature du token avec la clé secrète
     // Lève une exception si le token est invalide ou expiré
-    const decoded = jwt.verify(token, JWT_SECRET) as JWTPayload;
+    const decoded = jwt.verify(token, obtenirCleJwt(), {
+      algorithms: ['HS256'],
+    }) as JWTPayload;
     
     // Retourne les données du token si la vérification réussit
     return decoded;

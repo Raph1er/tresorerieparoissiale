@@ -9,7 +9,7 @@
  * composant client rendu derrière une frontière `Suspense`.
  *
  * Le fichier `app/login/page.tsx` devient donc un wrapper serveur minimal,
- * tandis que toute la logique interactive (formulaire, localStorage, redirection)
+ * tandis que toute la logique interactive (formulaire, session, redirection)
  * reste ici.
  * ─────────────────────────────────────────────────────────────────────────────
  */
@@ -24,7 +24,7 @@ import { getAuthToken, isTokenExpired, setSession } from "@/lib/client-auth";
 import Logo from "@/components/layout/Logo";
 
 const messageBlocks = [
-  "Gérez la trésorerie de votre paroisse en toute simplicité.",
+  "Gérez l'administration de votre paroisse en toute simplicité.",
   "Suivez le solde de la paroisse, les dernières opérations et les priorités de gestion depuis un seul écran.",
   "Contrôle des entrées, sorties et justificatifs avec pagination.",
 ];

@@ -18,6 +18,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ApiError, fetchWithAuth } from "@/lib/api-client";
+import { usePermissionContext } from "@/components/dashboard/PermissionContext";
 import {
   AlertCircle,
   ArrowDownRight,
@@ -97,6 +98,11 @@ function formatDate(dateString: string): string {
 }
 
 export default function DashboardPage() {
+  const user = usePermissionContext();
+  const canViewReports =
+    user?.role === "ADMIN" || Boolean(user?.modulePermissions?.includes("rapports"));
+  const canViewTransactions =
+    user?.role === "ADMIN" || Boolean(user?.modulePermissions?.includes("transactions"));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [resume, setResume] = useState<RapportResume | null>(null);
@@ -108,18 +114,22 @@ export default function DashboardPage() {
     async function loadData() {
       try {
         const [rapport, tx] = await Promise.all([
-          fetchWithAuth<RapportResponse>("/api/rapports"),
-          fetchWithAuth<TransactionsResponse>("/api/transactions?page=1&limit=5"),
+          canViewReports
+            ? fetchWithAuth<RapportResponse>("/api/rapports")
+            : Promise.resolve(null),
+          canViewTransactions
+            ? fetchWithAuth<TransactionsResponse>("/api/transactions?page=1&limit=5")
+            : Promise.resolve(null),
         ]);
 
         if (!mounted) {
           return;
         }
 
-        setResume(rapport.resume);
+        setResume(rapport?.resume ?? null);
 
         // Normalise la payload API pour éviter les rendus d'objets React (ex: categorie objet).
-        const transactionsNormalisees: DashboardTransaction[] = (tx.data ?? []).map((item) => ({
+        const transactionsNormalisees: DashboardTransaction[] = (tx?.data ?? []).map((item) => ({
           id: item.id,
           type: item.type,
           montant: item.montant,
@@ -151,7 +161,7 @@ export default function DashboardPage() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [canViewReports, canViewTransactions]);
 
   const stats = useMemo(() => {
     if (!resume) {
@@ -275,35 +285,41 @@ export default function DashboardPage() {
                 Résumé rapide
               </p>
               <p className="mt-2 text-2xl font-bold text-dark dark:text-white">
-                {resume ? formatMoney(resume.solde) : formatMoney(0)}
+                {resume ? formatMoney(resume.solde) : "Accès aux rapports non accordé"}
               </p>
-              <p className="mt-1 text-sm text-bodytext">
-                Solde actuel disponible pour les activités pastorales.
-              </p>
+              {resume ? (
+                <p className="mt-1 text-sm text-bodytext">
+                  Solde actuel disponible pour les activités pastorales.
+                </p>
+              ) : null}
             </div>
 
             <div className="grid sm:grid-cols-2 gap-3">
-              <Link
-                href="/dashboard/transactions"
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-medium text-white shadow-btnshdw"
-              >
-                <ReceiptText size={16} />
-                Voir les transactions
-              </Link>
-              <Link
-                href="/dashboard/rapports"
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-border dark:border-darkborder px-4 py-3 text-sm font-medium text-link dark:text-white"
-              >
-                <BarChart3 size={16} />
-                Voir les rapports
-              </Link>
+              {canViewTransactions ? (
+                <Link
+                  href="/dashboard/transactions"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-medium text-white shadow-btnshdw"
+                >
+                  <ReceiptText size={16} />
+                  Voir les transactions
+                </Link>
+              ) : null}
+              {canViewReports ? (
+                <Link
+                  href="/dashboard/rapports"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-border dark:border-darkborder px-4 py-3 text-sm font-medium text-link dark:text-white"
+                >
+                  <BarChart3 size={16} />
+                  Voir les rapports
+                </Link>
+              ) : null}
             </div>
           </div>
         </div>
       </section>
 
       <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-        {stats.map((stat) => {
+        {canViewReports ? stats.map((stat) => {
           const Icon = stat.icon;
 
           return (
@@ -328,11 +344,16 @@ export default function DashboardPage() {
               </div>
             </article>
           );
-        })}
+        }) : (
+          <p className="md:col-span-2 xl:col-span-4 rounded-xl border border-border bg-white p-5 text-center text-sm text-bodytext">
+            Les indicateurs financiers ne sont pas disponibles avec vos permissions actuelles.
+          </p>
+        )}
       </section>
 
       <section className="grid xl:grid-cols-[1.5fr_1fr] gap-6">
-        <article className="rounded-tw bg-white dark:bg-darkgray shadow-md border border-border dark:border-darkborder p-6">
+        {canViewTransactions ? (
+          <article className="rounded-tw bg-white dark:bg-darkgray shadow-md border border-border dark:border-darkborder p-6">
           <div className="flex items-center justify-between gap-4 mb-6">
             <div>
               <h2 className="card-title">Dernières transactions</h2>
@@ -385,7 +406,8 @@ export default function DashboardPage() {
               ))
             )}
           </div>
-        </article>
+          </article>
+        ) : null}
 
         <div className="space-y-6">
           {/* <article className="rounded-tw bg-white dark:bg-darkgray shadow-md border border-border dark:border-darkborder p-6">
@@ -440,23 +462,31 @@ export default function DashboardPage() {
                   href: "/dashboard/evenements",
                   label: "Gérer les événements",
                   icon: Calendar,
+                  permission: "evenements",
                 },
                 {
                   href: "/dashboard/categories",
                   label: "Voir les catégories",
                   icon: FolderTree,
+                  permission: "categories",
                 },
                 {
                   href: "/dashboard/transactions",
                   label: "Consulter les transactions",
                   icon: CreditCard,
+                  permission: "transactions",
                 },
                 {
                   href: "/dashboard/rapports",
                   label: "Consulter les rapports",
                   icon: BarChart3,
+                  permission: "rapports",
                 },
-              ].map((action) => {
+              ]
+                .filter((action) =>
+                  user?.role === "ADMIN" || user?.modulePermissions?.includes(action.permission)
+                )
+                .map((action) => {
                 const ActionIcon = action.icon;
 
                 return (

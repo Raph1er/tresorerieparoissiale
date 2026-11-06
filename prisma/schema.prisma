@@ -31,6 +31,7 @@ enum RoleUtilisateur {
   TRESORIER
   RESPONSABLE
   AUDITEUR
+  SECRETAIRE
 }
 
 //////////////////////////////////////////////////////
@@ -60,6 +61,138 @@ model Utilisateur {
   // Relations pour Catégories et Événements
   categories         Categorie[]               @relation("utilisateur_categories")
   evenements         Evenement[]               @relation("utilisateur_evenements")
+  permissionsModule  PermissionModule[]
+  programmesSemaineSecretaires ProgrammeSemaineSecretaire[]
+  programmesSemaineAssociees ProgrammeSemaineAssignation[]
+}
+
+model PermissionModule {
+  id            Int      @id @default(autoincrement())
+  utilisateurId Int      @map("utilisateur_id")
+  moduleKey     String   @map("module_key") @db.VarChar(64)
+  creeLe        DateTime @default(now()) @map("cree_le")
+
+  utilisateur   Utilisateur @relation(fields: [utilisateurId], references: [id], onDelete: Cascade)
+
+  @@unique([utilisateurId, moduleKey], map: "permissions_modules_utilisateur_module_key_key")
+  @@index([moduleKey], map: "permissions_modules_module_key_idx")
+  @@map("permissions_modules")
+}
+
+model TypeTemplate {
+  id          Int               @id @default(autoincrement())
+  cle         String            @unique @db.VarChar(64)
+  nom         String            @db.VarChar(120)
+  description String?           @db.Text
+  version     Int               @default(1)
+  actif       Boolean           @default(true)
+  creeLe      DateTime          @default(now()) @map("cree_le")
+  modifieLe   DateTime          @updatedAt @map("modifie_le")
+  sections    SectionTemplate[]
+  programmes  ProgrammeSemaine[]
+  reglesCalendrier RegleCalendrierTemplate[]
+
+  @@map("types_templates")
+}
+
+model SectionTemplate {
+  id              Int               @id @default(autoincrement())
+  typeTemplateId  Int               @map("type_template_id")
+  cle             String            @db.VarChar(64)
+  libelle         String            @db.VarChar(120)
+  ordre           Int
+  jourDecalage    Int?              @map("jour_decalage")
+  heure           String?           @db.VarChar(5)
+  typeTemplate    TypeTemplate      @relation(fields: [typeTemplateId], references: [id], onDelete: Cascade)
+  champs          ChampTemplate[]
+  regleCalendrier RegleCalendrierTemplate?
+
+  @@unique([typeTemplateId, cle], map: "sections_templates_type_template_id_cle_key")
+  @@index([typeTemplateId], map: "sections_templates_type_template_id_idx")
+  @@map("sections_templates")
+}
+
+model ChampTemplate {
+  id          Int             @id @default(autoincrement())
+  sectionId   Int             @map("section_id")
+  cle         String          @db.VarChar(64)
+  libelle     String          @db.VarChar(120)
+  typeDonnee  String          @default("TEXTE") @map("type_donnee") @db.VarChar(32)
+  ordre       Int
+  obligatoire Boolean         @default(false)
+  calcule     Boolean         @default(false)
+  calcul      String?         @db.VarChar(64)
+  modifiablePar String        @default("SECRETAIRE") @map("modifiable_par") @db.VarChar(32)
+  section     SectionTemplate @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  @@unique([sectionId, cle], map: "champs_templates_section_id_cle_key")
+  @@index([sectionId], map: "champs_templates_section_id_idx")
+  @@map("champs_templates")
+}
+
+model RegleCalendrierTemplate {
+  id            Int             @id @default(autoincrement())
+  typeTemplateId Int            @map("type_template_id")
+  sectionId     Int             @unique(map: "regles_calendrier_templates_section_key") @map("section_id")
+  cle           String          @db.VarChar(64)
+  typeRegle     String          @map("type_regle") @db.VarChar(48)
+  moisDebut     Int             @map("mois_debut") @db.SmallInt
+  jourDebut     Int             @map("jour_debut") @db.SmallInt
+  moisFin       Int             @map("mois_fin") @db.SmallInt
+  jourFin       Int             @map("jour_fin") @db.SmallInt
+  recurrence    String          @db.VarChar(24)
+  typeTemplate  TypeTemplate    @relation(fields: [typeTemplateId], references: [id], onDelete: Cascade)
+  section       SectionTemplate @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  @@unique([typeTemplateId, cle], map: "regles_calendrier_templates_type_cle_key")
+  @@index([typeTemplateId], map: "regles_calendrier_templates_type_template_idx")
+  @@map("regles_calendrier_templates")
+}
+
+model ProgrammeSemaine {
+  id              Int          @id @default(autoincrement())
+  typeTemplateId  Int          @map("type_template_id")
+  dateDebut       DateTime     @map("date_debut") @db.Date
+  dateFin         DateTime     @map("date_fin") @db.Date
+  versionTemplate Int          @map("version_template")
+  structure       Json
+  valeurs         Json
+  statut          String       @default("EN_PREPARATION") @db.VarChar(32)
+  creeParId       Int          @map("cree_par_id")
+  creeLe          DateTime     @default(now()) @map("cree_le")
+  modifieLe       DateTime     @updatedAt @map("modifie_le")
+  typeTemplate    TypeTemplate @relation(fields: [typeTemplateId], references: [id], onDelete: Restrict)
+  valeursSecretaires ProgrammeSemaineSecretaire[]
+  assignation     ProgrammeSemaineAssignation?
+
+  @@unique([typeTemplateId, dateDebut], map: "programmes_semaine_type_template_date_debut_key")
+  @@index([dateDebut], map: "programmes_semaine_date_debut_idx")
+  @@map("programmes_semaine")
+}
+
+model ProgrammeSemaineSecretaire {
+  id            Int              @id @default(autoincrement())
+  programmeId   Int              @map("programme_id")
+  utilisateurId Int              @map("utilisateur_id")
+  valeurs       Json
+  modifieLe     DateTime         @updatedAt @map("modifie_le")
+  programme     ProgrammeSemaine @relation(fields: [programmeId], references: [id], onDelete: Cascade)
+  utilisateur   Utilisateur      @relation(fields: [utilisateurId], references: [id], onDelete: Cascade)
+
+  @@unique([programmeId, utilisateurId], map: "programmes_semaine_secretaires_programme_utilisateur_key")
+  @@index([utilisateurId], map: "programmes_semaine_secretaires_utilisateur_idx")
+  @@map("programmes_semaine_secretaires")
+}
+
+model ProgrammeSemaineAssignation {
+  dateDebut       DateTime          @id @map("date_debut") @db.Date
+  programmeId     Int               @unique @map("programme_id")
+  associeParId    Int               @map("associe_par_id")
+  associeLe       DateTime          @default(now()) @map("associe_le")
+  programme       ProgrammeSemaine  @relation(fields: [programmeId], references: [id], onDelete: Restrict)
+  associePar      Utilisateur       @relation(fields: [associeParId], references: [id], onDelete: Restrict)
+
+  @@map("programmes_semaine_assignations")
 }
 
 //////////////////////////////////////////////////////

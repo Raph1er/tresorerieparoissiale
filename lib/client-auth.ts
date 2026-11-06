@@ -3,6 +3,7 @@ export interface AuthUser {
   nom: string;
   email: string;
   role: string;
+  modulePermissions?: string[];
 }
 
 const TOKEN_KEY = "auth_token";
@@ -27,7 +28,7 @@ export function getAuthToken(): string | null {
     return null;
   }
 
-  return localStorage.getItem(TOKEN_KEY);
+  return sessionStorage.getItem(TOKEN_KEY);
 }
 
 export function getAuthUser(): AuthUser | null {
@@ -35,7 +36,7 @@ export function getAuthUser(): AuthUser | null {
     return null;
   }
 
-  const raw = localStorage.getItem(USER_KEY);
+  const raw = sessionStorage.getItem(USER_KEY);
   if (!raw) {
     return null;
   }
@@ -52,8 +53,10 @@ export function setSession(token: string, user: AuthUser): void {
     return;
   }
 
-  localStorage.setItem(TOKEN_KEY, token);
-  localStorage.setItem(USER_KEY, JSON.stringify(user));
+  sessionStorage.setItem(TOKEN_KEY, token);
+  sessionStorage.setItem(USER_KEY, JSON.stringify(user));
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(USER_KEY);
 }
 
 export function setAuthUser(user: AuthUser): void {
@@ -61,7 +64,7 @@ export function setAuthUser(user: AuthUser): void {
     return;
   }
 
-  localStorage.setItem(USER_KEY, JSON.stringify(user));
+  sessionStorage.setItem(USER_KEY, JSON.stringify(user));
 }
 
 export function clearSession(): void {
@@ -69,8 +72,8 @@ export function clearSession(): void {
     return;
   }
 
-  localStorage.removeItem(TOKEN_KEY);
-  localStorage.removeItem(USER_KEY);
+  sessionStorage.removeItem(TOKEN_KEY);
+  sessionStorage.removeItem(USER_KEY);
 }
 
 export function getTokenExpirationDate(token: string): Date | null {

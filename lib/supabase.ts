@@ -17,11 +17,3 @@ export const supabaseServer = createClient(supabaseUrl, supabaseServiceRoleKey, 
     autoRefreshToken: false,
   },
 });
-
-console.log("SUPABASE_URL =", supabaseUrl);
-console.log(
-  "SERVICE_ROLE_KEY présente =",
-  !!supabaseServiceRoleKey,
-  "Longueur =",
-  supabaseServiceRoleKey?.length
-);

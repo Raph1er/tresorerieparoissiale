@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import supabaseDb from '@/lib/supabase-db';
 import { verifierMotDePasse, genererToken } from '@/lib/auth';
 import logger from '@/lib/logger';
+import { estErreurIndisponibiliteService, formaterErreurServeur } from '@/lib/service-errors';
 
 /**
  * Fonction POST pour la connexion
@@ -123,17 +124,34 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }, { status: 200 });
 
   } catch (error) {
-    // En cas d'erreur serveur (exception non prévue)
-    // Log l'erreur pour debug
-    console.error('Erreur lors de la connexion:', error);
+    const serviceIndisponible = estErreurIndisponibiliteService(error);
+    console.error(
+      serviceIndisponible
+        ? 'Service de base de données indisponible pendant la connexion'
+        : 'Erreur lors de la connexion:',
+      formaterErreurServeur(error)
+    );
 
-    // Log l'erreur dans le système d'audit
-    await logger.log('LOGIN_ERROR', `Erreur serveur: ${error}`);
+    await logger.log(
+      'LOGIN_ERROR',
+      serviceIndisponible
+        ? 'Service de base de données indisponible pendant la connexion'
+        : `Erreur serveur: ${error instanceof Error ? error.message : String(error)}`
+    );
 
-    // Retourne une erreur 500 (Internal Server Error)
     return NextResponse.json(
-      { erreur: 'Erreur serveur' },
-      { status: 500 }
+      {
+        erreur: serviceIndisponible
+          ? 'Le service de données est temporairement indisponible. Réessayez dans quelques instants.'
+          : 'Erreur serveur',
+        code: serviceIndisponible ? 'SERVICE_UNAVAILABLE' : 'AUTHENTICATION_ERROR',
+      },
+      {
+        status: serviceIndisponible ? 503 : 500,
+        headers: serviceIndisponible
+          ? { 'Retry-After': '5', 'Cache-Control': 'no-store' }
+          : { 'Cache-Control': 'no-store' },
+      }
     );
   }
 }

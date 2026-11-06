@@ -196,7 +196,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         await transporter.sendMail({
             from: mailFrom,
             to: contexte.email, // envoi vers l'utilisateur connecte
-            subject: 'Rapport PDF de votre plateforme de trésorerie paroissiale',
+            subject: 'Rapport PDF de votre plateforme d\'Administration Paroissiale',
             text:
                 'Bonjour,\n\n' +
                 'Veuillez trouver en piece jointe le rapport PDF généré depuis votre espace.\n\n' +

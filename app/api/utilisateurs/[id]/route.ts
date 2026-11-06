@@ -10,6 +10,8 @@ import { validerAuthentification, validerRole } from '@/middleware/auth.middlewa
 import { utilisateurService } from '@/modules/utilisateurs/utilisateur.service';
 import { UpdateUtilisateurDTO } from '@/types/utilisateur';
 import logger from '@/lib/logger';
+import { MODULE_PERMISSIONS } from '@/lib/module-permissions';
+import { supabaseServer } from '@/lib/supabase';
 import {
   validerIdUtilisateur,
   validerUpdateUtilisateurDTO,
@@ -67,11 +69,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // L'utilisateur peut voir:
     // - Ses propres informations
     // - Tout s'il est ADMIN ou RESPONSABLE
-    const peutVoir =
-      contexte.userId === id ||
-      contexte.role === 'ADMIN' ||
-      contexte.role === 'RESPONSABLE' ||
-      contexte.role === 'AUDITEUR';
+    const peutVoir = contexte.userId === id || contexte.role === 'ADMIN';
 
     if (!peutVoir) {
       return NextResponse.json(
@@ -210,6 +208,40 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
     // ÉTAPE 5 : Mettre à jour l'utilisateur (ADMIN)
     // ================================================================
 
+    if (bodyValide.role !== undefined || bodyValide.actif !== undefined) {
+      if (id === contexte.userId) {
+        return NextResponse.json(
+          { erreur: 'Vous ne pouvez pas modifier votre propre rôle ou statut' },
+          { status: 400 }
+        );
+      }
+
+      const { error: erreurAcces } = await supabaseServer.rpc('rpc_admin_update_access', {
+        p_actor_id: contexte.userId,
+        p_target_id: id,
+        p_actif: bodyValide.actif ?? null,
+        p_role: bodyValide.role ?? null,
+        p_module_keys: bodyValide.role === 'SECRETAIRE'
+          ? ['dashboard', 'secretariat']
+          : null,
+        p_allowed_module_keys: MODULE_PERMISSIONS.map((module) => module.key),
+      });
+
+      if (erreurAcces) {
+        if (erreurAcces.message.includes('LAST_ACTIVE_ADMIN')) {
+          return NextResponse.json(
+            { erreur: 'Le dernier administrateur actif ne peut pas être désactivé ou rétrogradé' },
+            { status: 409 }
+          );
+        }
+        if (erreurAcces.message.includes('USER_NOT_FOUND')) {
+          return NextResponse.json({ erreur: 'Utilisateur introuvable' }, { status: 404 });
+        }
+        console.error('Erreur changement rôle/statut utilisateur:', erreurAcces);
+        return NextResponse.json({ erreur: 'La modification des accès a échoué' }, { status: 500 });
+      }
+    }
+
     const utilisateurMiseAjour = await utilisateurService.updateUtilisateur(
       id,
       bodyValide,
@@ -295,10 +327,43 @@ export async function DELETE(request: NextRequest): Promise<NextResponse> {
     // ÉTAPE 4 : Supprimer l'utilisateur
     // ================================================================
 
-    const utilisateurSupprime = await utilisateurService.deleteUtilisateur(
-      id,
-      contexte.userId
+    if (id === contexte.userId) {
+      return NextResponse.json(
+        { erreur: 'Vous ne pouvez pas désactiver votre propre compte' },
+        { status: 400 }
+      );
+    }
+
+    const { error: erreurAcces } = await supabaseServer.rpc('rpc_admin_update_access', {
+      p_actor_id: contexte.userId,
+      p_target_id: id,
+      p_actif: false,
+      p_role: null,
+      p_module_keys: null,
+      p_allowed_module_keys: MODULE_PERMISSIONS.map((module) => module.key),
+    });
+
+    if (erreurAcces) {
+      if (erreurAcces.message.includes('LAST_ACTIVE_ADMIN')) {
+        return NextResponse.json(
+          { erreur: 'Le dernier administrateur actif ne peut pas être désactivé' },
+          { status: 409 }
+        );
+      }
+      if (erreurAcces.message.includes('USER_NOT_FOUND')) {
+        return NextResponse.json({ erreur: 'Utilisateur introuvable' }, { status: 404 });
+      }
+      console.error('Erreur désactivation utilisateur:', erreurAcces);
+      return NextResponse.json({ erreur: 'La désactivation a échoué' }, { status: 500 });
+    }
+
+    await logger.log(
+      'USER_DISABLED',
+      `Utilisateur ${id} désactivé`,
+      contexte.userId,
+      logger.extraireAdresseIP(request)
     );
+    const utilisateurSupprime = await utilisateurService.getUtilisateurById(id);
 
     return NextResponse.json(utilisateurSupprime, { status: 200 });
 

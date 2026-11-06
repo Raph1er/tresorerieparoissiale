@@ -14,7 +14,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Trésorerie Paroisse",
+  title: "Administration Paroissiale",
   description: "Plateforme de gestion financière paroissiale",
   icons: {
     icon: "/logo-ecc.webp",

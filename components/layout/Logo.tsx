@@ -34,7 +34,7 @@ const Logo = () => {
       {/* Nom de l'application sur deux lignes */}
       <span className="flex flex-col leading-tight">
         <span className="font-bold text-dark dark:text-white text-base">
-          Trésorerie
+          Administration
         </span>
         <span className="font-normal text-xs text-bodytext">
           Paroissiale

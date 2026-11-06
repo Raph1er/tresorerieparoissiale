@@ -32,8 +32,13 @@ import SidebarContent from "./SidebarItems";
 import NavItems from "./NavItems";
 import NavCollapse from "./NavCollapse";
 import Logo from "./Logo";
+import { usePermissionContext } from "@/components/dashboard/PermissionContext";
+import { filtrerMenuParPermissions } from "./authorized-menu";
 
 const SidebarLayout = () => {
+  const user = usePermissionContext();
+  const visibleMenu = filtrerMenuParPermissions(SidebarContent, user);
+
   return (
     // xl:block hidden → visible seulement à partir de 1280px (tailwind "xl")
     // Sur mobile, la sidebar est remplacée par un tiroir dans HeaderLayout
@@ -57,7 +62,7 @@ const SidebarLayout = () => {
             <Sidebar.ItemGroup className="sidebar-nav hide-menu">
 
               {/* Itération sur les sections de navigation (ACCUEIL, FINANCES, etc.) */}
-              {SidebarContent.map((section, index) => (
+              {visibleMenu.map((section, index) => (
                 <div className="caption" key={section.heading ?? index}>
 
                   {/* ── Titre de section ──────────────────────────────── */}

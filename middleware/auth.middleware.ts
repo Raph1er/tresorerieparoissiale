@@ -7,6 +7,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { extraireToken, verifierToken } from '@/lib/auth';
 import logger from '@/lib/logger';
+import { MODULE_PERMISSIONS, obtenirPermissionModulePourRoute } from '@/lib/module-permissions';
+import { supabaseServer } from '@/lib/supabase';
+import { estErreurIndisponibiliteService, formaterErreurServeur } from '@/lib/service-errors';
 
 /**
  * Interface pour le contexte d'authentification
@@ -19,6 +22,8 @@ export interface ContexteAuth {
   email: string;
   // Rôle de l'utilisateur (ADMIN, TRESORIER, RESPONSABLE, AUDITEUR)
   role: string;
+  nom: string;
+  modulePermissions: string[];
 }
 
 /**
@@ -88,35 +93,99 @@ export async function validerAuthentification(
       );
     }
 
-    // Crée le contexte d'authentification avec les données du token
-    // Ce contexte sera utilisé par les contrôleurs pour connaître l'utilisateur
+    if (!Number.isSafeInteger(payload.userId) || payload.userId <= 0) {
+      return NextResponse.json({ erreur: 'Token invalide' }, { status: 401 });
+    }
+
+    const { data: utilisateur, error: erreurUtilisateur } = await supabaseServer
+      .from('utilisateurs')
+      .select('id, nom, email, role, actif')
+      .eq('id', payload.userId)
+      .maybeSingle();
+
+    if (erreurUtilisateur) {
+      throw erreurUtilisateur;
+    }
+
+    if (!utilisateur || !utilisateur.actif) {
+      await logger.log(
+        'AUTH_FORBIDDEN',
+        `Compte absent ou désactivé: ${payload.userId}`,
+        payload.userId
+      );
+      return NextResponse.json(
+        { erreur: 'Compte désactivé ou introuvable', code: 'ACCOUNT_DISABLED' },
+        { status: 403 }
+      );
+    }
+
+    let modulePermissions: string[];
+    if (utilisateur.role === 'ADMIN') {
+      modulePermissions = MODULE_PERMISSIONS.map((module) => module.key);
+    } else {
+      const { data: permissions, error: erreurPermissions } = await supabaseServer
+        .from('permissions_modules')
+        .select('module_key')
+        .eq('utilisateur_id', utilisateur.id);
+
+      if (erreurPermissions) {
+        throw erreurPermissions;
+      }
+
+      modulePermissions = (permissions ?? []).map((permission) => permission.module_key);
+    }
+
+    const permissionModule = obtenirPermissionModulePourRoute(request.nextUrl.pathname);
+    if (
+      permissionModule &&
+      utilisateur.role !== 'ADMIN' &&
+      !modulePermissions.includes(permissionModule)
+    ) {
+      await logger.log(
+        'AUTH_FORBIDDEN',
+        `Accès au module ${permissionModule} refusé pour l'utilisateur ${utilisateur.id}`,
+        utilisateur.id,
+        logger.extraireAdresseIP(request)
+      );
+      return NextResponse.json(
+        { erreur: 'Vous n’avez pas accès à ce module' },
+        { status: 403 }
+      );
+    }
+
     const contexte: ContexteAuth = {
-      // ID extrait du token
-      userId: payload.userId,
-      // Email extrait du token
-      email: payload.email,
-      // Rôle extrait du token
-      role: payload.role,
+      userId: utilisateur.id,
+      email: utilisateur.email,
+      role: utilisateur.role,
+      nom: utilisateur.nom,
+      modulePermissions,
     };
 
     // Retourne le contexte d'authentification valide
     return contexte;
 
   } catch (error) {
-    // En cas d'erreur imprévisible
-    // Log l'erreur pour debug
-    console.error('Erreur middleware authentification:', error);
-
-    // Log l'erreur dans le système d'audit
-    await logger.log(
-      'AUTH_ERROR',
-      `Erreur middleware: ${error}`
+    const serviceIndisponible = estErreurIndisponibiliteService(error);
+    console.error(
+      serviceIndisponible
+        ? 'Service de base de données indisponible pendant l’authentification'
+        : 'Erreur middleware authentification',
+      formaterErreurServeur(error)
     );
 
-    // Retourne une erreur 500 (Internal Server Error)
     return NextResponse.json(
-      { erreur: 'Erreur d\'authentification' },
-      { status: 500 }
+      {
+        erreur: serviceIndisponible
+          ? 'Le service de données est temporairement indisponible. Réessayez dans quelques instants.'
+          : 'La vérification de votre session a échoué.',
+        code: serviceIndisponible ? 'SERVICE_UNAVAILABLE' : 'AUTHENTICATION_ERROR',
+      },
+      {
+        status: serviceIndisponible ? 503 : 500,
+        headers: serviceIndisponible
+          ? { 'Retry-After': '5', 'Cache-Control': 'no-store' }
+          : { 'Cache-Control': 'no-store' },
+      }
     );
   }
 }

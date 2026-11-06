@@ -17,7 +17,7 @@ import logger from '@/lib/logger';
 /**
  * GET /api/utilisateurs
  * Récupère la liste des utilisateurs avec pagination et filtres
- * Autorisé pour: ADMIN, RESPONSABLE, AUDITEUR
+ * Autorisé pour: ADMIN uniquement (gestion confidentielle des comptes)
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
@@ -37,12 +37,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // ÉTAPE 2 : Vérifier les permissions
     // ================================================================
 
-    // Seuls les ADMIN et RESPONSABLE peuvent voir la liste
-    const erreurRole = validerRole(contexte, [
-      'ADMIN',
-      'RESPONSABLE',
-      'AUDITEUR',
-    ]);
+    const erreurRole = validerRole(contexte, ['ADMIN']);
 
     if (erreurRole) {
       return erreurRole;

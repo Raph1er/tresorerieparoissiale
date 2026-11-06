@@ -17,7 +17,7 @@ import {
   UserRound,
 } from "lucide-react";
 
-type RoleValue = "ADMIN" | "TRESORIER" | "RESPONSABLE" | "AUDITEUR";
+type RoleValue = "ADMIN" | "TRESORIER" | "RESPONSABLE" | "AUDITEUR" | "SECRETAIRE";
 type RoleFilter = "ALL" | RoleValue;
 
 interface UserFormState {
@@ -277,6 +277,7 @@ export default function DashboardUtilisateursPage() {
             <option value="TRESORIER">TRESORIER</option>
             <option value="RESPONSABLE">RESPONSABLE</option>
             <option value="AUDITEUR">AUDITEUR</option>
+            <option value="SECRETAIRE">SECRETAIRE</option>
           </select>
 
           <select
@@ -457,6 +458,7 @@ export default function DashboardUtilisateursPage() {
                     <option value="TRESORIER">TRESORIER</option>
                     <option value="RESPONSABLE">RESPONSABLE</option>
                     <option value="AUDITEUR">AUDITEUR</option>
+                    {editingUserId ? <option value="SECRETAIRE">SECRETAIRE</option> : null}
                   </select>
                 </label>
 

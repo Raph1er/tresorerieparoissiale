@@ -138,7 +138,7 @@ async function construirePdfRapport(cahier: CahierDetail, enregistrements: Enreg
     "SAINT SIEGE DE PORTO-NOVO",
     "DIOCESE DU BENIN",
     ...getParoisseReportHeaderLines(),
-    "Trésorerie Paroissiale",
+    " Administration Paroissiale",
   ];
 
   doc.setFont("helvetica", "bold");

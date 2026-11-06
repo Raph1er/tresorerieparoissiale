@@ -160,7 +160,7 @@ export default function DashboardRapportsPage() {
       "SAINT SIEGE DE PORTO-NOVO",
       "DIOCESE DU BENIN",
       ...getParoisseReportHeaderLines(),
-      "Trésorerie Paroissiale",
+      "Administration Paroissiale",
     ];
 
     doc.setFont("helvetica", "bold");

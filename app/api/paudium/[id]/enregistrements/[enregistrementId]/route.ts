@@ -4,6 +4,8 @@ import { paudiumService } from '@/modules/paudium/paudium.service';
 import logger from '@/lib/logger';
 import { updateEnregistrementSchema } from '@/validations/paudium.schema';
 
+// Le service renvoie déjà un type explicite pour l'enregistrement.
+
 // Next.js 15+: params est une Promise
 interface RouteContext {
     params: Promise<{ id: string; enregistrementId: string }>;
@@ -37,7 +39,7 @@ export async function DELETE(
 
         // Vérifie que l'enregistrement existe et appartient bien au cahier
         const enreg = await paudiumService.getEnregistrementById(enregId);
-        if (!enreg || (enreg as any).cahierId !== cahierId) {
+        if (!enreg || enreg.cahierId !== cahierId) {
             return NextResponse.json({ erreur: 'Enregistrement introuvable' }, { status: 404 });
         }
 
@@ -93,7 +95,7 @@ export async function PUT(
 
         // Vérifie que l'enregistrement existe et appartient bien au cahier
         const enreg = await paudiumService.getEnregistrementById(enregId);
-        if (!enreg || (enreg as any).cahierId !== cahierId) {
+        if (!enreg || enreg.cahierId !== cahierId) {
             return NextResponse.json({ erreur: 'Enregistrement introuvable' }, { status: 404 });
         }
 

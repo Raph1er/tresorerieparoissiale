@@ -24,6 +24,7 @@ export interface ChildItem {
   icon?: string;          // identifiant Iconify ex: "solar:widget-add-line-duotone"
   children?: ChildItem[]; // si présent → groupe déroulant (NavCollapse)
   url?: string;           // chemin Next.js ex: "/dashboard/transactions"
+  permissionKey?: string; // clé d'accès gérée par l'administration
 }
 
 /** Un groupe de liens avec un titre de section */
@@ -45,6 +46,7 @@ const SidebarContent: MenuItem[] = [
         icon: "solar:widget-add-line-duotone",
         id: "dashboard",
         url: "/dashboard",
+        permissionKey: "dashboard",
       },
     ],
   },
@@ -58,18 +60,21 @@ const SidebarContent: MenuItem[] = [
         icon: "solar:card-transfer-line-duotone",
         id: "transactions",
         url: "/dashboard/transactions",
+        permissionKey: "transactions",
       },
       {
         name: "Dîmes",
         icon: "solar:hand-money-line-duotone",
         id: "dimes",
         url: "/dashboard/dimes",
+        permissionKey: "dimes",
       },
       {
         name: "Catégories",
         icon: "solar:folder-with-files-line-duotone",
         id: "categories",
         url: "/dashboard/categories",
+        permissionKey: "categories",
       },
     ],
   },
@@ -83,6 +88,7 @@ const SidebarContent: MenuItem[] = [
         icon: "solar:calendar-mark-line-duotone",
         id: "evenements",
         url: "/dashboard/evenements",
+        permissionKey: "evenements",
       },
 
             {
@@ -90,28 +96,42 @@ const SidebarContent: MenuItem[] = [
         icon: "solar:notebook-bookmark-line-duotone", // Icône de cahier
         id: "paudium",
         url: "/dashboard/paudium",
+        permissionKey: "paudium",
       },
       {
         name: "Rapports",
         icon: "solar:chart-square-line-duotone",
         id: "rapports",
         url: "/dashboard/rapports",
+        permissionKey: "rapports",
       },
     ],
   },
 
-  // ── Section 4 : Administration ────────────────────────────────────────
-  // {
-  //   heading: "ADMINISTRATION",
-  //   children: [
-  //     {
-  //       name: "Utilisateurs",
-  //       icon: "solar:users-group-rounded-line-duotone",
-  //       id: "utilisateurs",
-  //       url: "/dashboard/utilisateurs",
-  //     },
-  //   ],
-  // },
+  {
+    heading: "SECRÉTARIAT",
+    children: [
+      {
+        name: "Programme de la semaine",
+        icon: "solar:clipboard-list-line-duotone",
+        id: "programme-semaine",
+        url: "/dashboard/secretariat/programme-semaine",
+        permissionKey: "secretariat",
+      },
+    ],
+  },
+
+  {
+    heading: "ADMINISTRATION",
+    children: [
+      {
+        name: "Gestion des accès",
+        icon: "solar:shield-user-line-duotone",
+        id: "administration",
+        url: "/dashboard/administration",
+      },
+    ],
+  },
 
   // ── Section 5 : Compte personnel ──────────────────────────────────────
   {

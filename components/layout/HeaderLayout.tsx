@@ -37,41 +37,28 @@ import {
 import { fetchWithAuth } from "@/lib/api-client";
 import MobileSidebarContent from "./MobileSidebarContent";
 
-interface UserProfileApi {
-  id: number;
-  nom: string;
-  email: string;
-  role: string;
+interface AuthSessionApi {
+  user: AuthUser;
 }
 
 const HeaderLayout = () => {
   const router = useRouter();
 
   // ── Source utilisateur pour le header ───────────────────────────────────────
-  // On part du localStorage, puis on rafraîchit depuis la BD pour éviter
+  // On part du profil de session, puis on le rafraîchit depuis la BD pour éviter
   // d'afficher un profil obsolète après une mise à jour de compte.
   const [user, setUser] = useState<AuthUser | null>(() => getAuthUser());
 
   useEffect(() => {
     const localUser = getAuthUser();
     if (!localUser) {
-      setUser(null);
       return;
     }
 
-    setUser(localUser);
-
-    fetchWithAuth<UserProfileApi>(`/api/utilisateurs/${localUser.id}`)
-      .then((freshUser) => {
-        const normalized: AuthUser = {
-          id: freshUser.id,
-          nom: freshUser.nom,
-          email: freshUser.email,
-          role: freshUser.role,
-        };
-
-        setUser(normalized);
-        setAuthUser(normalized);
+    fetchWithAuth<AuthSessionApi>("/api/auth/session")
+      .then(({ user: freshUser }) => {
+        setUser(freshUser);
+        setAuthUser(freshUser);
       })
       .catch(() => {
         // En cas d'erreur temporaire, on conserve le profil local.
@@ -120,7 +107,7 @@ const HeaderLayout = () => {
 
   // ── Déconnexion ─────────────────────────────────────────────────────────────
   function handleLogout() {
-    clearSession();                        // supprime le token et les infos du localStorage
+    clearSession();                        // supprime le token et les infos de session
     router.replace("/login?logout=1");     // redirige vers la page de login
   }
 

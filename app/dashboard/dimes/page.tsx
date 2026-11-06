@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { getNowDateTimeInputValue, toDateTimeLocalInputValue } from "@/utils/date";
 import {
@@ -18,13 +18,8 @@ import {
   Wallet,
   X,
 } from "lucide-react";
-
-interface AuthUser {
-  id: number;
-  nom: string;
-  email: string;
-  role: string;
-}
+import { ApiError, fetchWithAuth } from "@/lib/api-client";
+import { getAuthUser } from "@/lib/client-auth";
 
 interface RepartitionDimeResponseDTO {
   id: number;
@@ -56,109 +51,6 @@ interface PaginatedResponse<T> {
     total: number;
     totalPages: number;
   };
-}
-
-class ApiError extends Error {
-  status: number;
-
-  constructor(message: string, status: number) {
-    super(message);
-    this.status = status;
-  }
-}
-
-function decodePayload(token: string): Record<string, unknown> | null {
-  try {
-    const base64 = token.split(".")[1];
-    if (!base64) {
-      return null;
-    }
-
-    const decoded = atob(base64.replace(/-/g, "+").replace(/_/g, "/"));
-    return JSON.parse(decoded) as Record<string, unknown>;
-  } catch {
-    return null;
-  }
-}
-
-function getAuthTokenLocal(): string | null {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  return localStorage.getItem("auth_token");
-}
-
-function getAuthUserLocal(): AuthUser | null {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  const raw = localStorage.getItem("auth_user");
-  if (!raw) {
-    return null;
-  }
-
-  try {
-    return JSON.parse(raw) as AuthUser;
-  } catch {
-    return null;
-  }
-}
-
-function isTokenExpiredLocal(token: string): boolean {
-  const payload = decodePayload(token);
-  const exp = payload?.exp;
-
-  if (typeof exp !== "number") {
-    return true;
-  }
-
-  return Date.now() >= exp * 1000;
-}
-
-function clearSessionLocal(): void {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  localStorage.removeItem("auth_token");
-  localStorage.removeItem("auth_user");
-}
-
-async function fetchWithAuth<T>(url: string, init?: RequestInit): Promise<T> {
-  const token = getAuthTokenLocal();
-
-  if (!token || isTokenExpiredLocal(token)) {
-    clearSessionLocal();
-    throw new ApiError("Session expiree. Merci de vous reconnecter.", 401);
-  }
-
-  const response = await fetch(url, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-      ...(init?.headers ?? {}),
-    },
-  });
-
-  const data = await response.json().catch(() => ({} as { erreur?: string }));
-
-  if (!response.ok) {
-    if (response.status === 401) {
-      clearSessionLocal();
-    }
-
-    const errorMessage =
-      typeof data === "object" && data !== null && "erreur" in data && typeof data.erreur === "string"
-        ? data.erreur
-        : "Erreur serveur";
-
-    throw new ApiError(errorMessage, response.status);
-  }
-
-  return data as T;
 }
 
 type SortFilter = "RECENT" | "MONTANT";
@@ -224,7 +116,7 @@ function normalizeDime(item: RepartitionDimeResponseDTO): DimeListItem {
 
 export default function DashboardDimesPage() {
   const now = getNowDateTimeInputValue();
-  const currentUser = getAuthUserLocal();
+  const currentUser = getAuthUser();
   const canCreate =
     currentUser?.role === "ADMIN" ||
     currentUser?.role === "RESPONSABLE" ||
@@ -256,7 +148,7 @@ export default function DashboardDimesPage() {
   });
   const [evenementOptions, setEvenementOptions] = useState<EvenementOption[]>([]);
 
-  async function chargerDimes(): Promise<void> {
+  const chargerDimes = useCallback(async (): Promise<void> => {
     setLoading(true);
     setError(null);
 
@@ -288,11 +180,11 @@ export default function DashboardDimesPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [page, limit, sortFilter]);
 
   useEffect(() => {
-    chargerDimes();
-  }, [page, limit, sortFilter]);
+    void chargerDimes();
+  }, [chargerDimes]);
 
   useEffect(() => {
     fetchWithAuth<{

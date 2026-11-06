@@ -24,7 +24,7 @@ interface ValidationError {
 type ValidationResult<T> = ValidationSuccess<T> | ValidationError;
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const ROLES: RoleUtilisateur[] = ['ADMIN', 'TRESORIER', 'RESPONSABLE', 'AUDITEUR'];
+const ROLES: RoleUtilisateur[] = ['ADMIN', 'TRESORIER', 'RESPONSABLE', 'AUDITEUR', 'SECRETAIRE'];
 
 function estObjet(value: unknown): value is Record<string, unknown> {
 	return typeof value === 'object' && value !== null;
@@ -95,6 +95,9 @@ export function validerCreateUtilisateurDTO(payload: unknown): ValidationResult<
 	const roleValide = parserRole(role);
 	if (!roleValide) {
 		return { success: false, error: 'Rôle invalide' };
+	}
+	if (roleValide === 'SECRETAIRE') {
+		return { success: false, error: 'Créez un compte Secrétaire depuis Gestion des accès afin de lui attribuer ses modules.' };
 	}
 
 	return {
@@ -220,4 +223,3 @@ export function validerPaginationUtilisateurQuery(
 		},
 	};
 }
-
