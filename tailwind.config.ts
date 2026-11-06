@@ -15,10 +15,10 @@
 
 import type { Config } from "tailwindcss";
 
-// flowbite-react v0.10.x fournit un helper "tailwind" qui expose :
+// flowbite-react v0.10.x fournit des exports nommés "content" et "plugin" :
 //   .content() → les chemins de ses propres composants (pour tree-shaking)
 //   .plugin()  → le plugin PostCSS qui génère les styles flowbite
-import flowbite from "flowbite-react/tailwind";
+import { content as flowbiteContent, plugin as flowbitePlugin } from "flowbite-react/tailwind";
 
 const config: Config = {
   // ── Mode sombre ─────────────────────────────────────────────────────────────
@@ -32,7 +32,7 @@ const config: Config = {
     "./app/**/*.{js,ts,jsx,tsx,mdx}",        // pages et layouts Next.js
     "./components/**/*.{js,ts,jsx,tsx,mdx}", // composants partagés
     "./modules/**/*.{js,ts,jsx,tsx,mdx}",    // modules métier
-    flowbite.content(),                       // composants internes de flowbite-react
+    flowbiteContent(),                        // composants internes de flowbite-react
   ],
 
   theme: {
@@ -118,8 +118,8 @@ const config: Config = {
   },
 
   // ── Plugins ──────────────────────────────────────────────────────────────────
-  // flowbite.plugin() enregistre les styles des composants Flowbite (Sidebar, Badge, etc.)
-  plugins: [flowbite.plugin()],
+  // flowbitePlugin() enregistre les styles des composants Flowbite (Sidebar, Badge, etc.)
+  plugins: [flowbitePlugin()],
 };
 
 export default config;
